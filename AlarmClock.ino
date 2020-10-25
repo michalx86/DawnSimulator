@@ -1,3 +1,10 @@
+// przerobic:
+// byte SimpleAlarmClock::nextAlarmDay(byte _AlarmMode, byte _ClockMode, byte _Hour, byte _Minute){
+//    dodac tryb dla poszczegolnych dni tygodnia M+T+W...S+S
+// byte SimpleAlarmClock::setRtcAlarm(const AlarmTime &alarm_i, byte alarmSelected){
+// byte SimpleAlarmClock::setMemAlarm(const AlarmTime &alarm_i, byte alarmSelected){
+
+
 /* ***********************************************************
  * RTC_Alarm sketch - v1.0
  *   Uses the ZS-040 module, aka DS3231 RTC module
@@ -1409,6 +1416,7 @@ void setup() {
     //attachInterrupt(digitalPinToInterrupt(2), Alarm, FALLING);
 
     /*          LCD Stuff           */
+    lcd.init();                      // initialize the lcd 
     lcd.begin(16, 2);
     //Create custom lcd characters
     lcd.createChar(1, cA1);
@@ -1445,6 +1453,7 @@ void setup() {
     //Serial.print("Register 0x0F = ");Serial.println(byteValue, BIN);
     Serial.println("Setup End");
 
+    lcd.backlight();
 }
 
 /* ***********************************************************
