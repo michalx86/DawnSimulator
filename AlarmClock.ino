@@ -49,13 +49,25 @@
 #include "pitches.h"
 
 /* ***********************************************************
+ *                    LED Control Constants                  *
+ * ********************************************************* */
+
+const int led_weak_pin = 6; // PWM
+const int led_strong_pin = 3; // PWM
+
+const unsigned LIGHTENING_PERIOD_BASE = 0xFFFF;
+const unsigned LIGHTENING_PERIOD_DIVISOR = 0x100;
+
+const unsigned LIGHTENING_WEAK_STEPS = 256;
+const unsigned LIGHTENING_STRONG_STEPS = 255;
+const unsigned LIGHTENING_STEPS = LIGHTENING_WEAK_STEPS + LIGHTENING_STRONG_STEPS;
+
+unsigned int led_step = 0;
+
+/* ***********************************************************
  *                      Global Constants                     *
  *                    Hardware Definitions                   *
  * ********************************************************* */
-    //LiquidCrystal(rs, enable, d4, d5, d6, d7)
-    // LiquidCrystal lcd(3, 4, 5, 6, 7, 8);     // instantiates the LiquiCrystal
-    //                                         // Object class to variable lcd
-
     LiquidCrystal_I2C lcd(0x27,20,4);  // set the LCD address to 0x27 for a 16 chars and 2 line display
                                              
     const byte RTC_addr=0x68;                // I2C address of DS3231 RTC
@@ -89,7 +101,6 @@
     const int Button_Hold_Time = 3000;      // button hold length of time in ms
     const int Alarm_View_Pause = 2000;      // View Alarm Length of time in ms
     const byte SnoozePeriod = 9;            // Snooze value, in minutes
-    const int flashInterval = 1000;         // Alarm flashing interval
     const int SkipClickTime = 60;           // Time in ms to ignore button click
 
     //Alarm types:
@@ -115,6 +126,8 @@
       //NOTE_C4, NOTE_G3, NOTE_G3, NOTE_A3, NOTE_G3, 0, NOTE_B3, NOTE_C4
       NOTE_C6, NOTE_C6, NOTE_C6, NOTE_C6, NOTE_C6,
     };
+
+    unsigned flashInterval = 1000;         // Alarm flashing interval
 
     // note durations: 4 = quarter note, 8 = eighth note, etc.:
     //int noteDurations[] = { 4, 8, 8, 4, 4, 4, 4, 4 };
@@ -194,6 +207,52 @@
 /* ***********************************************************
  *                         Functions                         *
  * ********************************************************* */
+unsigned calcLighteningStepDelay(unsigned stepNo) {
+  return (LIGHTENING_PERIOD_BASE-stepNo*stepNo)/LIGHTENING_PERIOD_DIVISOR;
+  
+}
+
+void ledWeakWrite(unsigned char val) {
+  static unsigned char last_led_weak_value = 255;
+
+  if (val != last_led_weak_value) {
+    last_led_weak_value = val;
+    analogWrite(led_weak_pin, last_led_weak_value);
+  }
+}
+
+void ledStrongWrite(unsigned char val) {
+  static unsigned char last_led_strong_value = 255;
+
+  if (val != last_led_strong_value) {
+    last_led_strong_value = val;
+    analogWrite(led_strong_pin, last_led_strong_value);
+  }
+}
+
+void makeLedLight(unsigned led_step) {
+  unsigned char led_weak_value = 0;
+  unsigned char led_strong_value = 0;
+  
+  if (led_step < LIGHTENING_WEAK_STEPS) {
+    led_weak_value = led_step;
+  } else {
+    led_weak_value = LIGHTENING_WEAK_STEPS - 1;
+    led_strong_value = led_step - led_weak_value;
+    if (led_step > LIGHTENING_STRONG_STEPS) {
+      led_step = LIGHTENING_STRONG_STEPS;
+    }
+  }
+
+//  Serial.print("W: ");
+//  Serial.print(led_weak_value);
+//  Serial.print(",S: ");
+//  Serial.println(led_strong_value);
+  
+  ledWeakWrite(led_weak_value);
+  ledStrongWrite(led_strong_value);
+}
+
 void displayClock(bool changeFlag=false) {
   /* ***************************************************** *
    * Display clock - skips update if there are no changes
@@ -1409,6 +1468,9 @@ void setup() {
     Serial.println("Setup Begin");
 
     /*         Pin Modes            */
+    pinMode(led_weak_pin, OUTPUT);
+    pinMode(led_strong_pin, OUTPUT);
+    makeLedLight(0);
     pinMode(LED_Pin, OUTPUT);
     digitalWrite(LED_Pin, LOW);
     pinMode(BUZZER_Pin, OUTPUT);
@@ -1507,17 +1569,29 @@ void loop() {
             break;
         case Alarm:
             //Alarm mode
-            if (ClockState != PrevState) { Serial.println("ClockState = Alarm"); PrevState = ClockState;}
+            if (ClockState != PrevState) {
+                Serial.println("ClockState = Alarm");
+                PrevState = ClockState;
+                led_step = 0;
+            }
+            
             displayClock();
             //Flash Clock
+            flashInterval = calcLighteningStepDelay(led_step);
             if ((millis()-previousMillis) >= flashInterval) {
                 previousMillis = millis();
+
                 if (bDisplayStatus == true){
                     lcd.noDisplay();
                 } else {
                     lcd.display();
                 }
                 bDisplayStatus = !bDisplayStatus;
+                makeLedLight(led_step++);
+                if (led_step >= LIGHTENING_STEPS) {
+                    ClockState = ShowClock;
+                }
+                
                 toggleLED();
                 toggleBuzzer();
             }
@@ -1548,5 +1622,5 @@ void loop() {
     LtKey.process();
     RtKey.process();
     SnoozeKey.process();
-    ActiveAlarms = CheckAlarmStatus();  //Returns which alarms are activated
+    ActiveAlarms = CheckAlarmStatus();  //Returns which alarms are activated    
 }
