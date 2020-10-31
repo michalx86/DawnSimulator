@@ -60,9 +60,12 @@ const unsigned LIGHTENING_PERIOD_DIVISOR = 0x1000;
 const unsigned LED_STRIP_WEAK_LEVEL_COUNT = 256;
 const unsigned LED_STRIP_STRONG_LEVEL_COUNT = 255;
 const unsigned LED_STRIP_LEVEL_COUNT = LED_STRIP_WEAK_LEVEL_COUNT + LED_STRIP_STRONG_LEVEL_COUNT;
+const unsigned LIGHT_LEVEL_ALLOWED_DIFF = 10;
+const unsigned DIMMING_INTERVAL_MS = 1000;
 
 unsigned ledLevel = 0;
 int ledStepDir = 0;
+unsigned lightLevelAtBrightening = 0;
 
 /* ***********************************************************
  *                      Global Constants                     *
@@ -1526,6 +1529,22 @@ void loop() {
                 ledLevel += ledStepDir;
                 makeLedLight(ledLevel);
             }
+
+            if (ledStepDir ==  1) {
+                lightLevelAtBrightening = analogRead(LightSensor_Pin);
+//                Serial.print("Light at brightening: ");
+//                Serial.println(lightLevelAtBrightening);
+            }
+        }
+    } else {
+        if ((ledLevel > 0) && (lightLevelAtBrightening + LIGHT_LEVEL_ALLOWED_DIFF < analogRead(LightSensor_Pin))) {
+          if ((millis()-previousLedMillis) >= DIMMING_INTERVAL_MS) {
+              previousLedMillis = millis();
+              ledLevel--;
+              makeLedLight(ledLevel);
+//              Serial.print("Dimming light: ");
+//              Serial.println(ledLevel);
+          }
         }
     }
 
@@ -1539,5 +1558,4 @@ void loop() {
         Serial.println(activeAlarms);
         ledStepDir = 1;
     }
-    //Serial.println(analogRead(LightSensor_Pin));
 }
