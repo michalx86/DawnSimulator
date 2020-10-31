@@ -46,7 +46,6 @@
 //#include <LiquidCrystal.h>
 #include <LiquidCrystal_I2C.h>
 #include <Button.h>                    // https://github.com/rmorenojr/Button
-#include "pitches.h"
 
 /* ***********************************************************
  *                    LED Control Constants                  *
@@ -87,21 +86,24 @@ unsigned int led_step = 0;
     // instantiate SimpleAlarmClock
     SimpleAlarmClock Clock(RTC_addr, EEPROM_addr, INTCN);
 
-    const int Snooze_Pin = 11;
+    const int LightSensor_Pin = A0;
     const int Lt_Pin = 9;
     const int Rt_Pin = 10;
+    const int Snooze_Pin = 11;
+    const int Switch_Pin = 12;
     const int DebouceTime = 30;               // button debouce time in ms
     Button SnoozeKey(Snooze_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
     Button LtKey(Lt_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
     Button RtKey(Rt_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
+    Button SwitchKey(Switch_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
 
     const int LED_Pin = 13;                 // digital pin for LED
-    const int BUZZER_Pin = 12;              // digital pin for tone buzzer
     const int SQW_Pin = 2;                  // Interrrupt pin
     const int Button_Hold_Time = 3000;      // button hold length of time in ms
     const int Alarm_View_Pause = 2000;      // View Alarm Length of time in ms
     const byte SnoozePeriod = 9;            // Snooze value, in minutes
     const int SkipClickTime = 60;           // Time in ms to ignore button click
+    const unsigned flashInterval = 1000;         // Alarm flashing interval
 
     //Alarm types:
     const byte Daily=0;
@@ -121,13 +123,7 @@ unsigned int led_step = 0;
  *                      Global Variables                     *
  * ********************************************************* */
 
-    // notes in the melody:
-    int melody[] = {
-      //NOTE_C4, NOTE_G3, NOTE_G3, NOTE_A3, NOTE_G3, 0, NOTE_B3, NOTE_C4
-      NOTE_C6, NOTE_C6, NOTE_C6, NOTE_C6, NOTE_C6,
-    };
-
-    unsigned flashInterval = 1000;         // Alarm flashing interval
+    unsigned ledStepInterval = 0;          // Interval till next Led Strip Step
 
     // note durations: 4 = quarter note, 8 = eighth note, etc.:
     //int noteDurations[] = { 4, 8, 8, 4, 4, 4, 4, 4 };
@@ -811,23 +807,6 @@ void toggleLED(bool ledON = true){
     }
 }
 
-void toggleBuzzer(void){
-    /* Plays alarm beeps and ends               */
-    /* Code found from arduino web site         */
-    for (int thisNote = 0; thisNote < 5; thisNote++) {
-        // to calculate the note duration, take one second divided by the note type.
-        // e.g. quarter note = 1000 / 4, eighth note = 1000/8, etc.
-        int noteDuration = 1000 / noteDurations[thisNote];
-        tone(BUZZER_Pin, melody[thisNote], noteDuration);
-
-        // to distinguish the notes, set a minimum time between them.
-        // the note's duration + 30% seems to work well:
-        int pauseBetweenNotes = noteDuration * 1.30;
-        delay(pauseBetweenNotes);
-        // stop the tone playing:
-        noTone(BUZZER_Pin);
-    }
-}
 
 void Snooze(void){
     /* Begin the clock.snoozealarm method to delay the alarm
@@ -863,7 +842,6 @@ void Snooze(void){
 void clearAlarms(void){
     //Clear alarm flags
     Clock.clearAlarms();
-    //toggleBuzzer();
     toggleLED(false);
     lcd.display();                     // Just in case it was off
 }
@@ -909,6 +887,9 @@ void ButtonClick(Button& b){
             break;
         case Rt_Pin:
             Serial.println("Rt_Pin");
+            break;
+        case Switch_Pin:
+            Serial.println("Switch_Pin");
             break;
         default:
             //do nothing
@@ -1473,8 +1454,8 @@ void setup() {
     makeLedLight(0);
     pinMode(LED_Pin, OUTPUT);
     digitalWrite(LED_Pin, LOW);
-    pinMode(BUZZER_Pin, OUTPUT);
-    digitalWrite(BUZZER_Pin, LOW);
+    pinMode(LightSensor_Pin, INPUT);
+
     //attachInterrupt(digitalPinToInterrupt(2), Alarm, FALLING);
 
     /*          LCD Stuff           */
@@ -1503,16 +1484,15 @@ void setup() {
     RtKey.holdHandler(ButtonHold,Button_Hold_Time);
     SnoozeKey.clickHandler(ButtonClick);
     SnoozeKey.holdHandler(ButtonHold,Button_Hold_Time);
+    SwitchKey.clickHandler(ButtonClick);
+    SwitchKey.holdHandler(ButtonHold,Button_Hold_Time);
 
     //Display the clock
     displayClock(true);
 
     //Debug code
-    //byte byteValue;
     Serial.print("Register 0x0E = ");Serial.println(Clock.getCtrlRegister(), BIN);
     Serial.print("Register 0x0F = ");Serial.println(Clock.getStatusRegister(), BIN);
-    //Clock.readByte(0x0f,byteValue);
-    //Serial.print("Register 0x0F = ");Serial.println(byteValue, BIN);
     Serial.println("Setup End");
 
     lcd.backlight();
@@ -1522,7 +1502,8 @@ void setup() {
  *                         Void Loop                         *
  * ********************************************************* */
 void loop() {
-    static long previousMillis = 0;
+    static long previousLcdMillis = 0;
+    static long previousLedMillis = 0;
     //if (ClockState != PrevState) { Serial.print("ClockState = ");Serial.println(ClockState); PrevState = ClockState;}
 
     switch (ClockState){
@@ -1531,8 +1512,8 @@ void loop() {
             //Serial.println("PowerLoss");
             displayClock();
             //Flash Clock
-            if ((millis()-previousMillis) >= flashInterval) {
-                previousMillis = millis();
+            if ((millis()-previousLcdMillis) >= flashInterval) {
+                previousLcdMillis = millis();
                 if (bDisplayStatus == true){
                     lcd.noDisplay();
                 } else {
@@ -1576,24 +1557,14 @@ void loop() {
             }
             
             displayClock();
-            //Flash Clock
-            flashInterval = calcLighteningStepDelay(led_step);
-            if ((millis()-previousMillis) >= flashInterval) {
-                previousMillis = millis();
-
-                if (bDisplayStatus == true){
-                    lcd.noDisplay();
-                } else {
-                    lcd.display();
-                }
-                bDisplayStatus = !bDisplayStatus;
+            ledStepInterval = calcLighteningStepDelay(led_step);
+            if ((millis()-previousLedMillis) >= ledStepInterval) {
+                previousLedMillis = millis();
                 makeLedLight(led_step++);
                 if (led_step >= LIGHTENING_STEPS) {
                     ClockState = ShowClock;
-                }
-                
-                toggleLED();
-                toggleBuzzer();
+                    Serial.println("--->>");
+                }                
             }
             break;
         case EditClock:
@@ -1622,5 +1593,8 @@ void loop() {
     LtKey.process();
     RtKey.process();
     SnoozeKey.process();
+    SwitchKey.process();
     ActiveAlarms = CheckAlarmStatus();  //Returns which alarms are activated    
+    //Serial.println(ActiveAlarms);
+    //Serial.println(analogRead(LightSensor_Pin));
 }
