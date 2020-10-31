@@ -57,9 +57,9 @@ const int led_strong_pin = 3; // PWM
 const unsigned LIGHTENING_PERIOD_BASE = 0xFFFF;
 const unsigned LIGHTENING_PERIOD_DIVISOR = 0x1000;
 
-const unsigned LIGHTENING_WEAK_STEPS = 256;
-const unsigned LIGHTENING_STRONG_STEPS = 255;
-const unsigned LIGHTENING_STEPS = LIGHTENING_WEAK_STEPS + LIGHTENING_STRONG_STEPS;
+const unsigned LED_STRIP_WEAK_LEVEL_COUNT = 256;
+const unsigned LED_STRIP_STRONG_LEVEL_COUNT = 255;
+const unsigned LED_STRIP_LEVEL_COUNT = LED_STRIP_WEAK_LEVEL_COUNT + LED_STRIP_STRONG_LEVEL_COUNT;
 
 unsigned ledLevel = 0;
 int ledStepDir = 0;
@@ -125,10 +125,6 @@ int ledStepDir = 0;
  * ********************************************************* */
 
     unsigned ledStepInterval = 0;          // Interval till next Led Strip Step
-
-    // note durations: 4 = quarter note, 8 = eighth note, etc.:
-    //int noteDurations[] = { 4, 8, 8, 4, 4, 4, 4, 4 };
-    int noteDurations[] = { 16, 16, 16, 16, 16 };
 
     enum States {
         PowerLoss,
@@ -202,11 +198,11 @@ int ledStepDir = 0;
 /* ***********************************************************
  *                         Functions                         *
  * ********************************************************* */
-unsigned calcLighteningStepDelay(unsigned stepNo) {
-  if (stepNo >= LIGHTENING_STEPS) {
+unsigned calcLighteningStepDelay(unsigned level) {
+  if (level >= LED_STRIP_LEVEL_COUNT) {
     return 0;
   }
-  return (LIGHTENING_PERIOD_BASE-stepNo*stepNo)/LIGHTENING_PERIOD_DIVISOR;
+  return (LIGHTENING_PERIOD_BASE-level*level)/LIGHTENING_PERIOD_DIVISOR;
   
 }
 
@@ -232,13 +228,13 @@ void makeLedLight(unsigned level) {
   unsigned led_weak_value = 0;
   unsigned led_strong_value = 0;
   
-  if (level < LIGHTENING_WEAK_STEPS) {
+  if (level < LED_STRIP_WEAK_LEVEL_COUNT) {
     led_weak_value = level;
   } else {
-    led_weak_value = LIGHTENING_WEAK_STEPS - 1;
+    led_weak_value = LED_STRIP_WEAK_LEVEL_COUNT - 1;
     led_strong_value = level - led_weak_value;
-    if (led_strong_value > LIGHTENING_STRONG_STEPS) {
-      led_strong_value = LIGHTENING_STRONG_STEPS;
+    if (led_strong_value > LED_STRIP_STRONG_LEVEL_COUNT) {
+      led_strong_value = LED_STRIP_STRONG_LEVEL_COUNT;
     }
   }
 
@@ -1522,7 +1518,7 @@ void loop() {
         ledStepInterval = calcLighteningStepDelay(ledLevel);
         if ((millis()-previousLedMillis) >= ledStepInterval) {
             previousLedMillis = millis();
-            if (((ledStepDir ==  1) && (ledLevel >= LIGHTENING_STEPS)) ||
+            if (((ledStepDir ==  1) && (ledLevel >= LED_STRIP_LEVEL_COUNT)) ||
                 ((ledStepDir == -1) && (ledLevel == 0))) 
             {
                 ledStepDir = 0;
