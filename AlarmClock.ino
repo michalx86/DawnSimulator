@@ -61,7 +61,8 @@ const unsigned LIGHTENING_WEAK_STEPS = 256;
 const unsigned LIGHTENING_STRONG_STEPS = 255;
 const unsigned LIGHTENING_STEPS = LIGHTENING_WEAK_STEPS + LIGHTENING_STRONG_STEPS;
 
-unsigned int led_step = 0;
+unsigned ledLevel = 0;
+int ledStepDir = 0;
 
 /* ***********************************************************
  *                      Global Constants                     *
@@ -134,7 +135,6 @@ unsigned int led_step = 0;
         ShowClock,
         ShowAlarm1,
         ShowAlarm2,
-        Rising,
         EditClock,
         EditAlarm1,
         EditAlarm2
@@ -142,7 +142,7 @@ unsigned int led_step = 0;
 
     States ClockState = ShowClock;
     States PrevState = EditAlarm2;     // Used for debugging
-    
+
     byte HourType = 0;                // 0=AM/PM, 1=24hour - used in display alarm - to be deleted
     bool Fahrenheit = true;           // Or Celsius=false
     bool PrevFahrenheit = Fahrenheit;  // Capture previous Fahrenheit
@@ -203,12 +203,15 @@ unsigned int led_step = 0;
  *                         Functions                         *
  * ********************************************************* */
 unsigned calcLighteningStepDelay(unsigned stepNo) {
+  if (stepNo >= LIGHTENING_STEPS) {
+    return 0;
+  }
   return (LIGHTENING_PERIOD_BASE-stepNo*stepNo)/LIGHTENING_PERIOD_DIVISOR;
   
 }
 
-void ledWeakWrite(unsigned char val) {
-  static unsigned char last_led_weak_value = 255;
+void ledWeakWrite(unsigned val) {
+  static unsigned last_led_weak_value = 255;
 
   if (val != last_led_weak_value) {
     last_led_weak_value = val;
@@ -216,8 +219,8 @@ void ledWeakWrite(unsigned char val) {
   }
 }
 
-void ledStrongWrite(unsigned char val) {
-  static unsigned char last_led_strong_value = 255;
+void ledStrongWrite(unsigned val) {
+  static unsigned last_led_strong_value = 255;
 
   if (val != last_led_strong_value) {
     last_led_strong_value = val;
@@ -225,17 +228,17 @@ void ledStrongWrite(unsigned char val) {
   }
 }
 
-void makeLedLight(unsigned led_step) {
-  unsigned char led_weak_value = 0;
-  unsigned char led_strong_value = 0;
+void makeLedLight(unsigned level) {
+  unsigned led_weak_value = 0;
+  unsigned led_strong_value = 0;
   
-  if (led_step < LIGHTENING_WEAK_STEPS) {
-    led_weak_value = led_step;
+  if (level < LIGHTENING_WEAK_STEPS) {
+    led_weak_value = level;
   } else {
     led_weak_value = LIGHTENING_WEAK_STEPS - 1;
-    led_strong_value = led_step - led_weak_value;
-    if (led_step > LIGHTENING_STRONG_STEPS) {
-      led_step = LIGHTENING_STRONG_STEPS;
+    led_strong_value = level - led_weak_value;
+    if (led_strong_value > LIGHTENING_STRONG_STEPS) {
+      led_strong_value = LIGHTENING_STRONG_STEPS;
     }
   }
 
@@ -897,22 +900,6 @@ void ButtonClick(Button& b){
                 }
                 break;
             //ShowAlarm1 or ShowAlarm2 does nothing
-            case Rising:
-                //Alarm Mode
-                switch (b.pinValue()){
-                    case Snooze_Pin:
-                        break;
-                    case Lt_Pin:
-                    case Rt_Pin:
-                        //turn off alarms
-                        clearAlarms();
-                        ClockState = ShowClock;
-                        break;
-                    default:
-                        //do nothing
-                        break;
-                }
-                break;
             case EditClock:
                 //Edit Clock Mode
                 switch (b.pinValue()){
@@ -1135,6 +1122,17 @@ void ButtonClick(Button& b){
                 //todo
                 break;
         }
+        if (b.pinValue() == Switch_Pin) {
+          if (ledStepDir != 0) {
+              ledStepDir *= -1;
+          } else if (ledLevel == 0) {
+              ledStepDir = 1;
+          } else {
+              ledStepDir = -1;
+          }
+          Serial.print("New ledStepDir: ");
+          Serial.println(ledStepDir);
+        }
     }
 }
 
@@ -1235,25 +1233,6 @@ void ButtonHold(Button& b){
                         displayAlarm(2,true);
                         break;
                     default:
-                        break;
-                }
-                break;
-            case Rising:
-                //Alarm Mode
-                switch (b.pinValue()){
-                    case Snooze_Pin:
-                        break;
-                    case Lt_Pin:
-                    case Rt_Pin:
-                        //turn off alarms
-                        clearAlarms();
-                        ClockState = ShowClock;
-                        buttonHoldPrevTime = millis();
-                        bHoldButtonFlag = true;
-                        displayClock(true);
-                        break;
-                    default:
-                        //do nothing
                         break;
                 }
                 break;
@@ -1515,24 +1494,6 @@ void loop() {
                 displayClock(true);
             }
             break;
-        case Rising:
-            //Alarm mode
-            if (ClockState != PrevState) {
-                Serial.println("ClockState = Rising");
-                PrevState = ClockState;
-                led_step = 0;
-            }
-            
-            displayClock();
-            ledStepInterval = calcLighteningStepDelay(led_step);
-            if ((millis()-previousLedMillis) >= ledStepInterval) {
-                previousLedMillis = millis();
-                makeLedLight(led_step++);
-                if (led_step >= LIGHTENING_STEPS) {
-                    ClockState = ShowClock;
-                }                
-            }
-            break;
         case EditClock:
             //Edit ClockMode
             if (ClockState != PrevState) { Serial.println("ClockState = EditClock"); PrevState = ClockState;}
@@ -1556,6 +1517,22 @@ void loop() {
             displayClock();
             break;
     }
+
+    if (ledStepDir != 0) {
+        ledStepInterval = calcLighteningStepDelay(ledLevel);
+        if ((millis()-previousLedMillis) >= ledStepInterval) {
+            previousLedMillis = millis();
+            if (((ledStepDir ==  1) && (ledLevel >= LIGHTENING_STEPS)) ||
+                ((ledStepDir == -1) && (ledLevel == 0))) 
+            {
+                ledStepDir = 0;
+            } else {
+                ledLevel += ledStepDir;
+                makeLedLight(ledLevel);
+            }
+        }
+    }
+
     LtKey.process();
     RtKey.process();
     SnoozeKey.process();
@@ -1564,7 +1541,7 @@ void loop() {
     if (activeAlarms) {
         Serial.print("Active alarms: ");
         Serial.println(activeAlarms);
-        ClockState = Rising;
+        ledStepDir = 1;
     }
     //Serial.println(analogRead(LightSensor_Pin));
 }
