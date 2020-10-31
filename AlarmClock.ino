@@ -55,7 +55,7 @@ const int led_weak_pin = 6; // PWM
 const int led_strong_pin = 3; // PWM
 
 const unsigned LIGHTENING_PERIOD_BASE = 0xFFFF;
-const unsigned LIGHTENING_PERIOD_DIVISOR = 0x100;
+const unsigned LIGHTENING_PERIOD_DIVISOR = 0x1000;
 
 const unsigned LIGHTENING_WEAK_STEPS = 256;
 const unsigned LIGHTENING_STRONG_STEPS = 255;
@@ -192,12 +192,12 @@ unsigned int led_step = 0;
     //Skinny letter A
     byte cSA[8] = {
                     0b00000,
-                    0b00010,
-                    0b00111,
-                    0b00101,
-                    0b00111,
-                    0b00101,
-                    0b00101,
+                    0b00110,
+                    0b01001,
+                    0b01001,
+                    0b01111,
+                    0b01001,
+                    0b01001,
                     0b00000 };
 
 /* ***********************************************************
@@ -1406,6 +1406,7 @@ byte CheckAlarmStatus(){
     return flaggedAlarms;
 }
 
+
 void lcdAlarmIndicator(){
     byte alarmEnabledStatus;
 
@@ -1562,8 +1563,10 @@ void loop() {
                 previousLedMillis = millis();
                 makeLedLight(led_step++);
                 if (led_step >= LIGHTENING_STEPS) {
+                    //turn off alarms
+                    clearAlarms();
                     ClockState = ShowClock;
-                    Serial.println("--->>");
+                    Serial.println("Turning alarms off");
                 }                
             }
             break;
