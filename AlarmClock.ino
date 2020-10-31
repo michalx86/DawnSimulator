@@ -134,7 +134,7 @@ unsigned int led_step = 0;
         ShowClock,
         ShowAlarm1,
         ShowAlarm2,
-        Alarm,
+        Rising,
         EditClock,
         EditAlarm1,
         EditAlarm2
@@ -154,7 +154,6 @@ unsigned int led_step = 0;
     AlarmTime PreviousAlarm;          // Maybe move as static variable under displayAlarm function
     byte EditHourType = 0;            // 0=AM, 1=PM, 2=24hour - used for edit only
     byte cpIndex = 0;                 // Cursor Position Index - used for edit mode
-    byte ActiveAlarms = 0;            // used to store active alarms (not enabled alarms)
     bool bHoldButtonFlag = false;     // used to prevent holdButton also activating clickButton
     bool bDisplayStatus = true;       // used to track the lcd display on status
 
@@ -808,37 +807,6 @@ void toggleLED(bool ledON = true){
 }
 
 
-void Snooze(void){
-    /* Begin the clock.snoozealarm method to delay the alarm
-    *  for SnoozePeriod.  It also clears alarm flags.
-    */
-    // Global variable ActiveAlarms will have which alarm is active
-    Serial.println("Snooze Activated");
-    switch (ActiveAlarms){
-        case 0:
-            //No flagged alarms
-            break;
-        case alarm1:
-            //alarm 1
-            Clock.snoozeAlarm(1, SnoozePeriod);
-            break;
-        case alarm2:
-            //alarm 2
-            Clock.snoozeAlarm(2, SnoozePeriod);
-            break;
-        case 3:
-            //both alarms
-            Clock.snoozeAlarm(1, SnoozePeriod);
-            Clock.snoozeAlarm(2, SnoozePeriod);
-            break;
-        default:
-        //do nothing
-        break;
-    }
-    toggleLED(false);                  // Confirm LED turned off
-    lcd.display();                     // Just in case it was off
-}
-
 void clearAlarms(void){
     //Clear alarm flags
     Clock.clearAlarms();
@@ -929,13 +897,10 @@ void ButtonClick(Button& b){
                 }
                 break;
             //ShowAlarm1 or ShowAlarm2 does nothing
-            case Alarm:
+            case Rising:
                 //Alarm Mode
                 switch (b.pinValue()){
                     case Snooze_Pin:
-                        //Snooze alarm for 9 minutes
-                        Snooze();
-                        ClockState = ShowClock;
                         break;
                     case Lt_Pin:
                     case Rt_Pin:
@@ -1273,15 +1238,10 @@ void ButtonHold(Button& b){
                         break;
                 }
                 break;
-            case Alarm:
+            case Rising:
                 //Alarm Mode
                 switch (b.pinValue()){
                     case Snooze_Pin:
-                        Snooze();             //Snooze alarm for 9 minutes
-                        ClockState = ShowClock;
-                        buttonHoldPrevTime = millis();
-                        bHoldButtonFlag = true;
-                        displayClock(true);
                         break;
                     case Lt_Pin:
                     case Rt_Pin:
@@ -1396,13 +1356,19 @@ byte CheckAlarmStatus(){
      3 - Both alarms enabled
     */
     bool AlarmStatus = digitalRead(SQW_Pin);
-    byte flaggedAlarms = Clock.flaggedAlarms();
+    byte flaggedAlarms = 0;
 
     //INTSQW is Active-Low Interrupt or Square-Wave Output
     if (AlarmStatus == LOW){
         //Alarm detected
-        ClockState = Alarm;
+        Serial.println("Alarm detected");
+        flaggedAlarms = Clock.flaggedAlarms();
+
+        //turn off alarms
+        clearAlarms();
+        Serial.println("Turning alarms off");
     }
+
     return flaggedAlarms;
 }
 
@@ -1549,10 +1515,10 @@ void loop() {
                 displayClock(true);
             }
             break;
-        case Alarm:
+        case Rising:
             //Alarm mode
             if (ClockState != PrevState) {
-                Serial.println("ClockState = Alarm");
+                Serial.println("ClockState = Rising");
                 PrevState = ClockState;
                 led_step = 0;
             }
@@ -1563,10 +1529,7 @@ void loop() {
                 previousLedMillis = millis();
                 makeLedLight(led_step++);
                 if (led_step >= LIGHTENING_STEPS) {
-                    //turn off alarms
-                    clearAlarms();
                     ClockState = ShowClock;
-                    Serial.println("Turning alarms off");
                 }                
             }
             break;
@@ -1597,7 +1560,11 @@ void loop() {
     RtKey.process();
     SnoozeKey.process();
     SwitchKey.process();
-    ActiveAlarms = CheckAlarmStatus();  //Returns which alarms are activated    
-    //Serial.println(ActiveAlarms);
+    byte activeAlarms = CheckAlarmStatus();  //Returns which alarms are activated    
+    if (activeAlarms) {
+        Serial.print("Active alarms: ");
+        Serial.println(activeAlarms);
+        ClockState = Rising;
+    }
     //Serial.println(analogRead(LightSensor_Pin));
 }
