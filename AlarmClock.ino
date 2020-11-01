@@ -61,7 +61,7 @@ const unsigned LED_STRIP_WEAK_LEVEL_COUNT = 256;
 const unsigned LED_STRIP_STRONG_LEVEL_COUNT = 255;
 const unsigned LED_STRIP_LEVEL_COUNT = LED_STRIP_WEAK_LEVEL_COUNT + LED_STRIP_STRONG_LEVEL_COUNT;
 const unsigned LIGHT_LEVEL_ALLOWED_DIFF = 10;
-const unsigned DIMMING_INTERVAL_MS = 1000;
+const unsigned DIMMING_INTERVAL_MS = 10;
 
 unsigned ledLevel = 0;
 int ledStepDir = 0;
@@ -143,8 +143,6 @@ unsigned lightLevelAtBrightening = 0;
     States PrevState = EditAlarm2;     // Used for debugging
 
     byte HourType = 0;                // 0=AM/PM, 1=24hour - used in display alarm - to be deleted
-    bool Fahrenheit = true;           // Or Celsius=false
-    bool PrevFahrenheit = Fahrenheit;  // Capture previous Fahrenheit
     float CurrentTemperature;         // Maybe move as static variable under displayClock function
     unsigned long RunTime;            // Used to track time between get temperature value
     unsigned long buttonHoldPrevTime = 0.0;  // Used to track button hold times 
@@ -263,14 +261,12 @@ void displayClock(bool changeFlag=false) {
 
     // CheckFlag Section:
     // The DS3231 temperature can be read once every 64 seconds.
-    // Check the temperature every 65 seconds OR
-    // Check the temperature if Fahrenheit changes
+    // Check the temperature every 65 seconds
     unsigned long uL = millis() - RunTime;
-    if ((uL >=65000)||(Fahrenheit != PrevFahrenheit)) {
+    if ((uL >=65000)) {
         float PreviousTemperature = CurrentTemperature;
         CurrentTemperature = getTemperatureValue();
         RunTime = millis();
-        PrevFahrenheit = Fahrenheit;
         if (CurrentTemperature != PreviousTemperature) {changeFlag = true;}
     }
 
@@ -309,7 +305,7 @@ void displayClock(bool changeFlag=false) {
         lcd.print(String(CurrentTemperature,1));  // converts float to string
                                                   // with 1 decimal place
         lcd.print((char)223);                     // prints the degree symbol
-        if (Fahrenheit) { lcd.print("F"); } else { lcd.print("C"); }
+        lcd.print("C");
 
         //Second Row  dow mm/dd/yyyy
         lcd.setCursor(0,1);                       // Column, Row
@@ -645,6 +641,10 @@ void changeClockMode(byte i=0, bool increment = true){
     //TODO: Error checking. Would return 0 for fail and 1 for OK
 }
 
+void changeAlarmOnDOW() {
+  
+}
+
 void changeAlarmMode(byte i=1, bool increment = true){
     /*  Change AlarmMode to 0=Daily, 1=Weekday, 2=Weekend, 3=Once
      *    i = 1 Alarm1
@@ -668,14 +668,6 @@ void changeAlarmMode(byte i=1, bool increment = true){
         alarm.AlarmMode = byte(AlarmMode);
         Clock.setAlarm(alarm,i);
     }//TODO: Error checking. Would return 0 for fail and 1 for OK
-}
-
-void changeTemp(void){
-    //change the temperature to F or C
-    Fahrenheit = !Fahrenheit;
-    CurrentTemperature = getTemperatureValue();
-    RunTime = millis();
-    displayClock(true);
 }
 
 void changeMonth(byte i=0, bool increment = true){
@@ -910,9 +902,9 @@ void ButtonClick(Button& b){
                         break;
                     case Lt_Pin:
                         // Decrements value
-                        // First Row  hh:mm AM ###.#°F
-                        //             0  1  2       3
-                        // Second Row dow mm/dd/yyyy
+                        // First Row  hh:mm dow PWSCPSN
+                        //             0  1         23
+                        // Second Row mm/dd/yyyy ##.#°
                         //                 4  5    6
                         switch (cpIndex){
                             case 0:
@@ -929,7 +921,7 @@ void ButtonClick(Button& b){
                                 break;
                             case 3:
                                 //Farenheit
-                                changeTemp();
+                                changeAlarmOnDOW();
                                 break;
                             case 4:
                                 //edit month
@@ -964,8 +956,7 @@ void ButtonClick(Button& b){
                                 changeClockMode(clock0, true);
                                 break;
                             case 3:
-                                //Farenheit
-                                changeTemp();
+                                changeAlarmOnDOW();
                                 break;
                             case 4:
                                 //edit month
@@ -1317,13 +1308,8 @@ String p2Digits(int numValue) {
 }
 
 float getTemperatureValue(){
-    // Value from Clock.getTemperatureFloat() in in Celsius
-    float floatTemperature;
-    floatTemperature = Clock.getTemperatureFloat();
-    if (Fahrenheit ==  true) {
-        floatTemperature = floatTemperature*9.0/5.0+32.0;
-    }
-    return floatTemperature;
+    // Value from Clock.getTemperatureFloat() in  Celsius
+    return Clock.getTemperatureFloat();
 }
 
 byte CheckAlarmStatus(){
