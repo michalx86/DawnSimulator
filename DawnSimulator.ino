@@ -114,10 +114,6 @@ unsigned lightLevelAtBrightening = 0;
     const byte Weekday=1;
     const byte Weekend=2;
     const byte Once=3;
-    //Clock Modes:
-    const byte AMhr=0;
-    const byte PMhr=1;
-    const byte M24hr=2;
     //Clocks
     const byte clock0=0;
     const byte alarm1=1;
@@ -258,6 +254,8 @@ void displayClock(bool changeFlag=false) {
    * ***************************************************** */
     DateTime NowTime;            //create DateTime struct from Library
     NowTime = Clock.read();      // get the latest clock values
+//    Serial.print("ClockMode: ");
+//    Serial.println(NowTime.ClockMode);
 
     // CheckFlag Section:
     // The DS3231 temperature can be read once every 64 seconds.
@@ -287,21 +285,7 @@ void displayClock(bool changeFlag=false) {
         lcd.print(p2Digits(NowTime.Hour));
         lcd.print(":");
         lcd.print(p2Digits(NowTime.Minute));
-        switch (NowTime.ClockMode){
-            case AMhr:
-                lcd.print(" AM ");
-                break;
-            case PMhr:
-                lcd.print(" PM ");
-                break;
-            case M24hr:
-                lcd.print("  M ");
-                break;
-            default:
-                //do nothing
-                break;
-        }
-        if (CurrentTemperature < 100.0) { lcd.print(" "); }
+        lcd.print(" ");
         lcd.print(String(CurrentTemperature,1));  // converts float to string
                                                   // with 1 decimal place
         lcd.print((char)223);                     // prints the degree symbol
@@ -364,7 +348,6 @@ void displayAlarm(byte index=1, bool changeFlag=false) {
     // Check for Alarm change
     if (alarm.Hour != PreviousAlarm.Hour){ changeFlag = true; }
     if (alarm.Minute != PreviousAlarm.Minute){ changeFlag = true; }
-    if (alarm.ClockMode != PreviousAlarm.ClockMode) { changeFlag = true; }
     if (alarm.AlarmMode != PreviousAlarm.AlarmMode) { changeFlag = true; }
 
     //Update Display - Only change display if change is detected
@@ -390,23 +373,7 @@ void displayAlarm(byte index=1, bool changeFlag=false) {
         lcd.print(p2Digits(alarm.Hour));
         lcd.print(":");
         lcd.print(p2Digits(alarm.Minute));
-        switch (alarm.ClockMode){
-            case AMhr:
-                //AM
-                lcd.print(" AM");
-                break;
-            case PMhr:
-                //PM
-                lcd.print(" PM");
-                break;
-            case M24hr:
-                //24hr
-                lcd.print("  M");
-                break;
-            default:
-                lcd.print("  M");
-                break;
-        }
+        lcd.print(" ");
         switch (alarm.AlarmMode){
             //0=Daily, 1=Weekday, 2=Weekend, 3=Once
             case 0:
@@ -442,62 +409,37 @@ void changeHour(byte i=clock0, bool increment = true){
     AlarmTime alarm;
     DateTime NowTime;                  //create DateTime struct from Library
     int Hour;
-    byte ClockMode;
 
     switch (i){
         case clock0:
             //Clock
             NowTime = Clock.read();        // get the latest clock values
             Hour = NowTime.Hour;
-            ClockMode = NowTime.ClockMode;
             break;
         case alarm1:
             //alarm1
             alarm = Clock.readAlarm(alarm1);
             Hour = alarm.Hour;
-            ClockMode = alarm.ClockMode;
             break;
         case alarm2:
             //alarm2
             alarm = Clock.readAlarm(alarm2);
             Hour = alarm.Hour;
-            ClockMode = alarm.ClockMode;
             break;
         default:
             //Clock
             NowTime = Clock.read();      // get the latest clock values
             Hour = NowTime.Hour;
-            ClockMode = NowTime.ClockMode;
             break;
     }
-    switch (ClockMode){
-        case AMhr:
-        case PMhr:
-            if (increment == true){
-                Hour += 1;
-                Hour %= 12;
-            } else {
-                Hour -= 1;
-                Hour %= 12;
-            }
-            if (Hour <= 0) { Hour = 12; }
-            //Serial.print("12Hour = ");Serial.println(Hour);
-            break;
-        case M24hr:
-            if (increment == true){
-                Hour += 1;
-                Hour %= 24;
-            } else {
-                Hour -= 1;
-                Hour %= 24;
-            }
-            if (Hour < 0) { Hour = 23;}
-            //Serial.print("24Hour = ");Serial.println(Hour);
-            break;
-        default:
-            //do nothing
-            break;
+    if (increment == true){
+        Hour += 1;
+    } else {
+        Hour -= 1;
     }
+    Hour %= 24;
+    if (Hour < 0) { Hour = 23;}
+    //Serial.print("24Hour = ");Serial.println(Hour);
     switch (i){
         case clock0:
             //Clock
@@ -588,54 +530,6 @@ void changeMinute(byte i=0, bool increment = true){
             //Clock
             NowTime.Minute = byte(Minute);
             Clock.write(NowTime);
-            break;
-    }
-    //TODO: Error checking. Would return 0 for fail and 1 for OK
-}
-
-void changeClockMode(byte i=0, bool increment = true){
-    /*  Change Clock's ClockMode to AM=0, PM=1 or 24=2
-     *  Limited change of Alarm's ClockMode to AM or PM
-     *  or no change if 24hr
-     *    i = 0 Clock0
-     *      = 1 Alarm1
-     *      = 2 Alarm2
-     */
-    AlarmTime alarm;
-    DateTime NowTime = Clock.read();     //create DateTime struct from Library
-    int ClockMode = NowTime.ClockMode;   //int is able to be negative
-
-    switch (i){
-        case clock0:
-            //Clock
-            if (increment == true) {
-                ClockMode += 1;
-                ClockMode %= 3;
-            } else {
-                ClockMode -= 1;
-                ClockMode %= 3;
-            }
-            if (ClockMode < 0) { ClockMode = 2; }
-            NowTime.ClockMode = byte(ClockMode);
-            Clock.write(NowTime);
-            fixAlarmClockMode(alarm1, NowTime.ClockMode);
-            fixAlarmClockMode(alarm2, NowTime.ClockMode);
-            break;
-        case alarm1:
-        case alarm2:
-            //alarm1 or alarm2
-            if (ClockMode != M24hr){
-                alarm = Clock.readAlarm(i);
-                if (alarm.ClockMode == AMhr){
-                    alarm.ClockMode = PMhr;
-                } else {
-                    alarm.ClockMode = AMhr;
-                }
-                Clock.setAlarm(alarm, i);
-            } //else do nothing
-            break;
-        default:
-            //do nothing
             break;
     }
     //TODO: Error checking. Would return 0 for fail and 1 for OK
@@ -740,36 +634,6 @@ void changeYear(byte i=0, bool increment = true){
     if (Year > 199){ Year = 18; }
     NowTime.Year = byte(Year);
     Clock.write(NowTime);
-}
-
-void fixAlarmClockMode(byte alarmIndex, byte NewClockMode ){
-    /** ********************************************************
-     * Fixes alarm clockmode if clock.clockmode is switch
-     * between 12hr and 24hr clockmodes
-     ********************************************************* */
-    AlarmTime alarm = Clock.readAlarm(alarmIndex);
-    //Clock Modes:
-    //const byte AMhr=0;
-    //const byte PMhr=1;
-    //const byte M24hr=2;
-
-    //TODO: check alarmIndex, check NewClockMode
-    if ((NewClockMode == AMhr)||(NewClockMode == PMhr)){
-        if (alarm.Hour > 12){
-            alarm.ClockMode = PMhr;
-        } else {
-            alarm.ClockMode = AMhr;
-        }
-        alarm.Hour %= 12;
-        if (alarm.Hour == 0){ alarm.Hour = 12;}
-    } else if (NewClockMode == M24hr) {
-        //Convert to 24hr
-        alarm.Hour %= 12;
-        alarm.Hour += (12 * alarm.ClockMode);
-        alarm.ClockMode = M24hr;
-    }
-    Clock.setAlarm(alarm, alarmIndex);
-
 }
 
 void toggleShowAlarm(byte i=1){
@@ -917,7 +781,6 @@ void ButtonClick(Button& b){
                                 break;
                             case 2:
                                 //edit ClockMode
-                                changeClockMode(clock0, false);
                                 break;
                             case 3:
                                 //Farenheit
@@ -953,7 +816,6 @@ void ButtonClick(Button& b){
                                 break;
                             case 2:
                                 //edit ClockMode
-                                changeClockMode(clock0, true);
                                 break;
                             case 3:
                                 changeAlarmOnDOW();
@@ -1004,7 +866,6 @@ void ButtonClick(Button& b){
                                 break;
                             case 2:
                                 //edit ClockMode
-                                changeClockMode(alarm1, false);
                                 break;
                             case 3:
                                 //AlarmMode
@@ -1029,7 +890,6 @@ void ButtonClick(Button& b){
                                 break;
                             case 2:
                                 //edit ClockMode
-                                changeClockMode(alarm1, true);
                                 break;
                             case 3:
                                 //AlarmMode
@@ -1067,7 +927,6 @@ void ButtonClick(Button& b){
                             break;
                         case 2:
                             //edit ClockMode
-                            changeClockMode(alarm2, false);
                             break;
                         case 3:
                             //AlarmMode
@@ -1092,7 +951,6 @@ void ButtonClick(Button& b){
                                 break;
                             case 2:
                                 //edit ClockMode
-                                changeClockMode(alarm2, true);
                                 break;
                             case 3:
                                 //AlarmMode
@@ -1480,7 +1338,6 @@ void loop() {
             }
             break;
         case EditClock:
-            //Edit ClockMode
             if (ClockState != PrevState) { Serial.println("ClockState = EditClock"); PrevState = ClockState;}
             editClock(cpIndex);
             displayClock();
