@@ -254,8 +254,6 @@ void displayClock(bool changeFlag=false) {
    * ***************************************************** */
     DateTime NowTime;            //create DateTime struct from Library
     NowTime = Clock.read();      // get the latest clock values
-//    Serial.print("ClockMode: ");
-//    Serial.println(NowTime.ClockMode);
 
     // CheckFlag Section:
     // The DS3231 temperature can be read once every 64 seconds.
@@ -280,32 +278,35 @@ void displayClock(bool changeFlag=false) {
     if (changeFlag == true){
         lcd.clear();
 
-        //First Row  hh:mm AM ###.#°F
+        // First Row  hh:mm dt PWSCPSN
         lcd.setCursor(0,0);                       //Column, Row
         lcd.print(p2Digits(NowTime.Hour));
         lcd.print(":");
         lcd.print(p2Digits(NowTime.Minute));
         lcd.print(" ");
-        lcd.print(String(CurrentTemperature,1));  // converts float to string
-                                                  // with 1 decimal place
-        lcd.print((char)223);                     // prints the degree symbol
-        lcd.print("C");
-
-        //Second Row  dow mm/dd/yyyy
-        lcd.setCursor(0,1);                       // Column, Row
         lcd.print(dow2Str(NowTime.Dow));          // Integer Day of the week
                                                   // convert to String with
                                                   // an optional leading zero
         lcd.print(" ");
-        lcd.print(p2Digits(NowTime.Month));
-        lcd.print("/");
+        lcd.print("PWSCPSN");
+        
+
+        // Second Row dd/mm/yyyy ##.#°
+        lcd.setCursor(0,1);                       // Column, Row
         lcd.print(p2Digits(NowTime.Day));
+        lcd.print("/");
+        lcd.print(p2Digits(NowTime.Month));
         lcd.print("/");
         int i = 2000 + NowTime.Year;
         lcd.print(i);
-        lcd.write(4);                             //Skinny letter A
-        lcdAlarmIndicator();                      //lcd.print A1, A2, BA, or -
-
+        lcd.print(" ");
+        //lcd.write(4);                             //Skinny letter A
+        //lcdAlarmIndicator();                      //lcd.print A1, A2, BA, or -
+        lcd.print(String(CurrentTemperature,1));  // converts float to string
+                                                  // with 1 decimal place
+        lcd.print((char)223);                     // prints the degree symbol
+        lcd.print("C");
+        
         PreviousTime = Clock.read();
     }
 }
@@ -675,8 +676,8 @@ void clearAlarms(void){
 void editClock(byte i=0){
     //First Row  hh:mm AM ###.#°F
     //Second Row dow mm/dd/yyyyA^
-    //                             hh    mm    AM     F     mm    dd   yyyy
-    byte cursorPositions[][2] = {{1,0},{4,0},{7,0},{15,0},{5,1},{8,1},{13,1}};
+    //                             hh    mm    AM     F     dd    mm   yyyy
+    byte cursorPositions[][2] = {{1,0},{4,0},{7,0},{15,0},{1,1},{4,1},{9,1}};
     //lcd.setCursor(Column, Row);
     //Serial.print("editclock position = "); Serial.println(i);
     lcd.setCursor(cursorPositions[i][0],cursorPositions[i][1]);
@@ -730,6 +731,8 @@ void ButtonClick(Button& b){
         bHoldButtonFlag = false;
     } else {
         //PowerLoss,ShowClock, Alarm, EditClock, EditAlarm1, EditAlarm2
+        bool shouldIncrement = true;
+
         switch (ClockState){
             case PowerLoss:
                 //any clickbutton and return to ShowClock
@@ -765,19 +768,21 @@ void ButtonClick(Button& b){
                         cpIndex %= 7;
                         break;
                     case Lt_Pin:
+                        shouldIncrement = false;
+                    case Rt_Pin:
                         // Decrements value
-                        // First Row  hh:mm dow PWSCPSN
-                        //             0  1         23
-                        // Second Row mm/dd/yyyy ##.#°
-                        //                 4  5    6
+                        // First Row  hh:mm dt PWSCPSN
+                        //             0  1  2       3
+                        // Second Row dd/mm/yyyy ##.#°
+                        //             4  5    6
                         switch (cpIndex){
                             case 0:
                                 //edit Hours
-                                changeHour(clock0, false);
+                                changeHour(clock0, shouldIncrement);
                                 break;
                             case 1:
                                 //edit Minute
-                                changeMinute(clock0, false);
+                                changeMinute(clock0, shouldIncrement);
                                 break;
                             case 2:
                                 //edit ClockMode
@@ -787,50 +792,16 @@ void ButtonClick(Button& b){
                                 changeAlarmOnDOW();
                                 break;
                             case 4:
-                                //edit month
-                                changeMonth(clock0, false);
+                                //edit day
+                                changeDay(clock0, shouldIncrement);
                                 break;
                             case 5:
-                                //edit day
-                                changeDay(0, false);
+                                //edit month
+                                changeMonth(clock0, shouldIncrement);
                                 break;
                             case 6:
                                 //edit year
-                                changeYear(clock0, false);
-                                break;
-                            default:
-                                //do nothing
-                                break;
-                        }
-                        break;
-                    case Rt_Pin:
-                        // Increments value
-                        switch (cpIndex){
-                            case 0:
-                                //edit Hours
-                                changeHour(clock0, true);
-                                break;
-                            case 1:
-                                //edit Minute
-                                changeMinute(clock0, true);
-                                break;
-                            case 2:
-                                //edit ClockMode
-                                break;
-                            case 3:
-                                changeAlarmOnDOW();
-                                break;
-                            case 4:
-                                //edit month
-                                changeMonth(clock0, true);
-                                break;
-                            case 5:
-                                //edit day
-                                changeDay(clock0, true);
-                                break;
-                            case 6:
-                                //edit year
-                                changeYear(clock0, true);
+                                changeYear(clock0, shouldIncrement);
                                 break;
                             default:
                                 //do nothing
@@ -1147,7 +1118,7 @@ void ButtonHold(Button& b){
 
 String dow2Str(byte bDow) {
     // Day of week to string or char array. DOW 1=Sunday, 0 is undefined
-    static const char *str[] = {"---", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
+    static const char *str[] = {"---", "Nd", "Pn", "Wt", "Sr", "Cz", "Pt", "So"};
     if (bDow > 7) bDow = 0;
     return(str[bDow]);
 }
