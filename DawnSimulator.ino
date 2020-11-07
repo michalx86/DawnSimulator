@@ -449,9 +449,7 @@ void changeHour(byte i=clock0, bool increment = true){
             break;
         case alarm1:
             //alarm1
-            Serial.println("Setting Alarm1");
             alarm.Hour = byte(Hour);
-            Serial.print("alarm.Hour = ");Serial.println(alarm.Hour);
             Clock.setAlarm(alarm,1);
             break;
         case alarm2:
@@ -520,7 +518,12 @@ void changeMinute(byte i=0, bool increment = true){
         case alarm1:
             //alarm1
             alarm.Minute = byte(Minute);
+            Serial.println("Setting Alarm1");
+            alarm.EnabledDows = 0x82; // Sat + Sun
+            Serial.print("alarm.EnabledDows = ");Serial.println(alarm.EnabledDows);
             Clock.setAlarm(alarm,1);
+            alarm = Clock.readAlarm(alarm1);
+            Serial.print("alarm.EnabledDows after read = ");Serial.println(alarm.EnabledDows);
             break;
         case alarm2:
             //alarm2
@@ -765,16 +768,16 @@ void ButtonClick(Button& b){
                         //Increments cursor position
                         //cpIndex += 1 % 7;
                         cpIndex += 1;
-                        cpIndex %= 7;
+                        cpIndex %= 5;
                         break;
                     case Lt_Pin:
                         shouldIncrement = false;
                     case Rt_Pin:
                         // Decrements value
                         // First Row  hh:mm dt PWSCPSN
-                        //             0  1  2       3
+                        //             0  1  
                         // Second Row dd/mm/yyyy ##.#°
-                        //             4  5    6
+                        //             2  3    4
                         switch (cpIndex){
                             case 0:
                                 //edit Hours
@@ -785,21 +788,14 @@ void ButtonClick(Button& b){
                                 changeMinute(clock0, shouldIncrement);
                                 break;
                             case 2:
-                                //edit ClockMode
-                                break;
-                            case 3:
-                                //Farenheit
-                                changeAlarmOnDOW();
-                                break;
-                            case 4:
                                 //edit day
                                 changeDay(clock0, shouldIncrement);
                                 break;
-                            case 5:
+                            case 3:
                                 //edit month
                                 changeMonth(clock0, shouldIncrement);
                                 break;
-                            case 6:
+                            case 4:
                                 //edit year
                                 changeYear(clock0, shouldIncrement);
                                 break;
@@ -824,7 +820,7 @@ void ButtonClick(Button& b){
                         //cpIndex += 1 % 4; didn't work
                         break;
                     case Lt_Pin:
-                        // Decrements value      hh:mm AM Weekday
+                        // Decrements value      hh:mm Weekday
                         //cpIndex is global
                         switch (cpIndex){
                             case 0:
@@ -834,9 +830,6 @@ void ButtonClick(Button& b){
                             case 1:
                                 //edit Minute
                                 changeMinute(alarm1, false);
-                                break;
-                            case 2:
-                                //edit ClockMode
                                 break;
                             case 3:
                                 //AlarmMode
@@ -1157,9 +1150,24 @@ byte CheckAlarmStatus(){
         Serial.println("Alarm detected");
         flaggedAlarms = Clock.flaggedAlarms();
 
+        if (flaggedAlarms) {
+            Serial.print("flaggedAlarms: ");
+            Serial.println(flaggedAlarms);
+            if (flaggedAlarms & 1) {
+                AlarmTime alarm = Clock.readAlarm(alarm1);
+                Serial.print("Alarm 1 Enabled Dows: ");
+                Serial.println(alarm.EnabledDows);
+            }
+            if (flaggedAlarms & 2) {
+                AlarmTime alarm = Clock.readAlarm(alarm2);
+                Serial.print("Alarm 2 Enabled Dows: ");
+                Serial.println(alarm.EnabledDows);
+            }
+        }
+
         //turn off alarms
-        clearAlarms();
         Serial.println("Turning alarms off");
+        clearAlarms();
     }
 
     return flaggedAlarms;
