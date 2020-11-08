@@ -684,7 +684,7 @@ void clearAlarms(void){
 void editClock(byte i=0){
     //First  Row  mm/dd/yyyy ##.#°
     //Second Row  hh:mm AM DT PWSCPSN
-    byte cursorPositions[][2] = {{1,0},{4,0},{1,1},{4,1},{7,1}};
+    byte cursorPositions[][2] = {{1,0},{4,0},{9,0},{1,1},{4,1}};
     //lcd.setCursor(Column, Row);
     //Serial.print("editclock position = "); Serial.println(i);
     lcd.setCursor(cursorPositions[i][0],cursorPositions[i][1]);
