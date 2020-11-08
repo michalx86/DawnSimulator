@@ -86,10 +86,10 @@ unsigned lightLevelAtBrightening = 0;
     const int LightSensor_Pin = A0;
     const int Lt_Pin = 9;
     const int Rt_Pin = 10;
-    const int Snooze_Pin = 11;
+    const int Mode_Pin = 11;
     const int Switch_Pin = 12;
     const int DebouceTime = 30;               // button debouce time in ms
-    Button SnoozeKey(Snooze_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
+    Button ModeKey(Mode_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
     Button LtKey(Lt_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
     Button RtKey(Rt_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
     Button SwitchKey(Switch_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
@@ -98,7 +98,6 @@ unsigned lightLevelAtBrightening = 0;
     const int SQW_Pin = 2;                  // Interrrupt pin
     const int Button_Hold_Time = 3000;      // button hold length of time in ms
     const int Alarm_View_Pause = 2000;      // View Alarm Length of time in ms
-    const byte SnoozePeriod = 9;            // Snooze value, in minutes
     const int SkipClickTime = 60;           // Time in ms to ignore button click
     const unsigned flashInterval = 1000;         // Alarm flashing interval
 
@@ -713,8 +712,8 @@ void ButtonClick(Button& b){
     //Debug code to Serial monitor
     Serial.print("Button Click - ");
     switch(b.pinValue()){
-        case Snooze_Pin:
-            Serial.println("Snooze_Pin");
+        case Mode_Pin:
+            Serial.println("Mode_Pin");
             break;
         case Lt_Pin:
             Serial.println("Lt_Pin");
@@ -752,7 +751,7 @@ void ButtonClick(Button& b){
                 //ShowClock Mode
                 //show alarm screens
                 switch (b.pinValue()){
-                    case Snooze_Pin:
+                    case Mode_Pin:
                         //Do Nothing
                         break;
                     case Lt_Pin:
@@ -770,7 +769,7 @@ void ButtonClick(Button& b){
             case EditClock:
                 //Edit Clock Mode
                 switch (b.pinValue()){
-                    case Snooze_Pin:
+                    case Mode_Pin:
                         //Increments cursor position
                         //cpIndex += 1 % 7;
                         cpIndex += 1;
@@ -821,7 +820,7 @@ void ButtonClick(Button& b){
             case EditAlarm2:
                 //Edit Alarm2
                 switch (b.pinValue()){
-                    case Snooze_Pin:
+                    case Mode_Pin:
                         //Increments cursor position
                         cpIndex += 1;
                         cpIndex %= 9;
@@ -888,8 +887,8 @@ void ButtonHold(Button& b){
     //Debug code to Serial monitor
     Serial.print("Button Hold - ");
     switch(b.pinValue()){
-        case Snooze_Pin:
-            Serial.println("Snooze_Pin");
+        case Mode_Pin:
+            Serial.println("Mode_Pin");
             break;
         case Lt_Pin:
             Serial.println("Lt_Pin");
@@ -916,7 +915,7 @@ void ButtonHold(Button& b){
                 break;
             case ShowClock:
                 switch (b.pinValue()){
-                    case Snooze_Pin:
+                    case Mode_Pin:
                         //Edit main clock display
                         ClockState = EditClock;
                         cpIndex = 0;
@@ -945,7 +944,7 @@ void ButtonHold(Button& b){
                 break;
             case ShowAlarm1:
                 switch (b.pinValue()){
-                    case Snooze_Pin:
+                    case Mode_Pin:
                         break;
                     case Lt_Pin:
                         ClockState = EditAlarm1;
@@ -964,7 +963,7 @@ void ButtonHold(Button& b){
                 break;
             case ShowAlarm2:
                 switch (b.pinValue()){
-                    case Snooze_Pin:
+                    case Mode_Pin:
                         break;
                     case Lt_Pin:
                         break;
@@ -982,7 +981,7 @@ void ButtonHold(Button& b){
                 break;
             case EditClock:  //Edit Clock
                 switch (b.pinValue()){
-                    case Snooze_Pin:
+                    case Mode_Pin:
                         lcd.noBlink();
                         lcd.noCursor();
                         ClockState = ShowClock;
@@ -997,7 +996,7 @@ void ButtonHold(Button& b){
                 break;
             case EditAlarm1:  //Edit Alarm1
                 switch (b.pinValue()){
-                    case Snooze_Pin:
+                    case Mode_Pin:
                         lcd.noBlink();
                         lcd.noCursor();
                         ClockState = ShowClock;
@@ -1013,7 +1012,7 @@ void ButtonHold(Button& b){
                 break;
             case EditAlarm2:  //Edit Alarm1
                 switch (b.pinValue()){
-                    case Snooze_Pin:
+                    case Mode_Pin:
                         lcd.noBlink();
                         lcd.noCursor();
                         ClockState = ShowClock;
@@ -1186,8 +1185,8 @@ void setup() {
     LtKey.holdHandler(ButtonHold,Button_Hold_Time);
     RtKey.clickHandler(ButtonClick);
     RtKey.holdHandler(ButtonHold,Button_Hold_Time);
-    SnoozeKey.clickHandler(ButtonClick);
-    SnoozeKey.holdHandler(ButtonHold,Button_Hold_Time);
+    ModeKey.clickHandler(ButtonClick);
+    ModeKey.holdHandler(ButtonHold,Button_Hold_Time);
     SwitchKey.clickHandler(ButtonClick);
     SwitchKey.holdHandler(ButtonHold,Button_Hold_Time);
 
@@ -1308,7 +1307,7 @@ void loop() {
 
     LtKey.process();
     RtKey.process();
-    SnoozeKey.process();
+    ModeKey.process();
     SwitchKey.process();
     byte activeAlarms = CheckAlarmStatus();  //Returns which alarms are activated    
     if (activeAlarms) {
