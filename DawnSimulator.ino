@@ -141,6 +141,7 @@ unsigned lightLevelAtBrightening = 0;
     byte cpIndex = 0;                 // Cursor Position Index - used for edit mode
     bool bHoldButtonFlag = false;     // used to prevent holdButton also activating clickButton
     bool bDisplayStatus = true;       // used to track the lcd display on status
+    bool alarmIntrSignalled = false;
 
     //custom LCD characters: https://omerk.github.io/lcdchargen/
     //Up arrow
@@ -835,11 +836,11 @@ void ButtonClick(Button& b){
                         switch (cpIndex){
                             case 0:
                                 //edit Hours
-                                changeHour(alarm, true);
+                                changeHour(alarm, shouldIncrement);
                                 break;
                             case 1:
                                 //edit Minute
-                                changeMinute(alarm, true);
+                                changeMinute(alarm, shouldIncrement);
                                 break;
                             case 2:
                             case 3:
@@ -1058,6 +1059,11 @@ float getTemperatureValue(){
     return Clock.getTemperatureFloat();
 }
 
+
+void AlarmIntrCallback() {
+  alarmIntrSignalled = true;
+}
+
 byte CheckAlarmStatus(){
     /* Returns:
      0 - No alarms
@@ -1065,11 +1071,13 @@ byte CheckAlarmStatus(){
      2 - Alarm 2 enabled
      3 - Both alarms enabled
     */
-    bool AlarmStatus = digitalRead(SQW_Pin);
     byte flaggedAlarms = 0;
+/*    bool AlarmStatus = digitalRead(SQW_Pin);
 
     //INTSQW is Active-Low Interrupt or Square-Wave Output
-    if (AlarmStatus == LOW){
+    if (AlarmStatus == LOW){*/
+    if (alarmIntrSignalled) {
+        alarmIntrSignalled = false;
         //Alarm detected
         Serial.println("Alarm detected");
         flaggedAlarms = Clock.flaggedAlarms();
@@ -1107,18 +1115,19 @@ void printAlarmIndicators(byte alarmEnabledStatus, byte enabledDows1, byte enabl
      */
     static char dowLetters[] = {'-', 'P', 'W',  'S',  'C',  'P',  'S',  'N'}; 
     for (byte i = 2; i <=8; i++) {
+        byte enabledStatus = alarmEnabledStatus;
         byte dow = (i > 7)? 1 : i;
 
         byte alarmEnabledOnDow = (enabledDows1 >> dow) & 1;
         if (!alarmEnabledOnDow) {
-          alarmEnabledStatus &= 0b10;
+          enabledStatus &= 0b10;
         }
 
         alarmEnabledOnDow = (enabledDows2 >> dow) & 1;
         if (!alarmEnabledOnDow) {
-          alarmEnabledStatus &= 0b01;
+          enabledStatus &= 0b01;
         }
-        switch (alarmEnabledStatus){
+        switch (enabledStatus){
             case 0:
                 //No alarms
                 lcd.print(dowLetters[i-1]);
@@ -1159,7 +1168,7 @@ void setup() {
     digitalWrite(LED_Pin, LOW);
     pinMode(LightSensor_Pin, INPUT);
 
-    //attachInterrupt(digitalPinToInterrupt(2), Alarm, FALLING);
+    attachInterrupt(digitalPinToInterrupt(2), AlarmIntrCallback, FALLING);
 
     /*          LCD Stuff           */
     lcd.init();                      // initialize the lcd 
