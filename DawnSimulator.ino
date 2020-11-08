@@ -1,10 +1,3 @@
-// przerobic:
-// byte SimpleAlarmClock::nextAlarmDay(byte _AlarmMode, byte _ClockMode, byte _Hour, byte _Minute){
-//    dodac tryb dla poszczegolnych dni tygodnia M+T+W...S+S
-// byte SimpleAlarmClock::setRtcAlarm(const AlarmTime &alarm_i, byte alarmSelected){
-// byte SimpleAlarmClock::setMemAlarm(const AlarmTime &alarm_i, byte alarmSelected){
-
-
 /* ***********************************************************
  * RTC_Alarm sketch - v1.0
  *   Uses the ZS-040 module, aka DS3231 RTC module
@@ -278,21 +271,10 @@ void displayClock(bool changeFlag=false) {
     if (changeFlag == true){
         lcd.clear();
 
-        // First Row  hh:mm dt PWSCPSN
-        lcd.setCursor(0,0);                       //Column, Row
-        lcd.print(p2Digits(NowTime.Hour));
-        lcd.print(":");
-        lcd.print(p2Digits(NowTime.Minute));
-        lcd.print(" ");
-        lcd.print(dow2Str(NowTime.Dow));          // Integer Day of the week
-                                                  // convert to String with
-                                                  // an optional leading zero
-        lcd.print(" ");
-        lcd.print("PWSCPSN");
         
 
-        // Second Row dd/mm/yyyy ##.#°
-        lcd.setCursor(0,1);                       // Column, Row
+        // First Row dd/mm/yyyy ##.#°
+        lcd.setCursor(0,0);                       // Column, Row
         lcd.print(p2Digits(NowTime.Day));
         lcd.print("/");
         lcd.print(p2Digits(NowTime.Month));
@@ -300,13 +282,22 @@ void displayClock(bool changeFlag=false) {
         int i = 2000 + NowTime.Year;
         lcd.print(i);
         lcd.print(" ");
-        //lcd.write(4);                             //Skinny letter A
-        //lcdAlarmIndicator();                      //lcd.print A1, A2, BA, or -
         lcd.print(String(CurrentTemperature,1));  // converts float to string
                                                   // with 1 decimal place
         lcd.print((char)223);                     // prints the degree symbol
         lcd.print("C");
         
+        // Second Row  hh:mm dt PWSCPSN
+        lcd.setCursor(0,1);                       //Column, Row
+        lcd.print(p2Digits(NowTime.Hour));
+        lcd.print(":");
+        lcd.print(p2Digits(NowTime.Minute));
+        lcd.print(" ");
+        lcd.print(dow2Str(NowTime.Dow));          // Integer Day of the week
+                                                  // convert to String
+        lcd.print(" ");
+        printAlarmIndicators(Clock.alarmStatus(),  Clock.readAlarm(alarm1).EnabledDows, Clock.readAlarm(alarm2).EnabledDows);
+
         PreviousTime = Clock.read();
     }
 }
@@ -350,17 +341,22 @@ void displayAlarm(byte index=1, bool changeFlag=false) {
     if (alarm.Hour != PreviousAlarm.Hour){ changeFlag = true; }
     if (alarm.Minute != PreviousAlarm.Minute){ changeFlag = true; }
     if (alarm.AlarmMode != PreviousAlarm.AlarmMode) { changeFlag = true; }
+    if (alarm.EnabledDows != PreviousAlarm.EnabledDows) { changeFlag = true; }
 
     //Update Display - Only change display if change is detected
     if (changeFlag == true){
         lcd.clear();
+        byte enabledDows1 = 0;
+        byte enabledDows2 = 0;
 
         // First row
         lcd.setCursor(0,0);
         if (index == alarm2) {
             lcd.print("Alarm 2");
+            enabledDows2 = alarm.EnabledDows;
         } else {
             lcd.print("Alarm 1");
+            enabledDows1 = alarm.EnabledDows;
         }
         lcd.setCursor(13,0);
         if (alarm.Enabled == true) {
@@ -379,7 +375,8 @@ void displayAlarm(byte index=1, bool changeFlag=false) {
             //0=Daily, 1=Weekday, 2=Weekend, 3=Once
             case 0:
                 //Daily
-                lcd.print(" Daily");
+                lcd.setCursor(9,1);
+                printAlarmIndicators(0b11,  enabledDows1, enabledDows2);
                 break;
             case 1:
                 //Weekday
@@ -518,12 +515,7 @@ void changeMinute(byte i=0, bool increment = true){
         case alarm1:
             //alarm1
             alarm.Minute = byte(Minute);
-            Serial.println("Setting Alarm1");
-            alarm.EnabledDows = 0x82; // Sat + Sun
-            Serial.print("alarm.EnabledDows = ");Serial.println(alarm.EnabledDows);
             Clock.setAlarm(alarm,1);
-            alarm = Clock.readAlarm(alarm1);
-            Serial.print("alarm.EnabledDows after read = ");Serial.println(alarm.EnabledDows);
             break;
         case alarm2:
             //alarm2
@@ -539,8 +531,21 @@ void changeMinute(byte i=0, bool increment = true){
     //TODO: Error checking. Would return 0 for fail and 1 for OK
 }
 
-void changeAlarmOnDOW() {
+void changeEnabledDows(byte i, byte dow) {
+    /*  Change Dows  1=Sun, 2=Mon,..., 7=Sat
+     *    i = 1 Alarm1
+     *      = 2 Alarm2
+     */
   
+    if ((i==1)||(i=2)){
+        AlarmTime alarm = Clock.readAlarm(i);
+
+        alarm.EnabledDows ^= (1 << dow); // invert only 1 bit representing this dow
+
+        Serial.print("changeEnabledDows: ");
+        Serial.println(alarm.EnabledDows,BIN);
+        Clock.setAlarm(alarm,i);
+    }//TODO: Error checking. Would return 0 for fail and 1 for OK
 }
 
 void changeAlarmMode(byte i=1, bool increment = true){
@@ -677,10 +682,9 @@ void clearAlarms(void){
 }
 
 void editClock(byte i=0){
-    //First Row  hh:mm AM ###.#°F
-    //Second Row dow mm/dd/yyyyA^
-    //                             hh    mm    AM     F     dd    mm   yyyy
-    byte cursorPositions[][2] = {{1,0},{4,0},{7,0},{15,0},{1,1},{4,1},{9,1}};
+    //First  Row  mm/dd/yyyy ##.#°
+    //Second Row  hh:mm AM DT PWSCPSN
+    byte cursorPositions[][2] = {{1,0},{4,0},{1,1},{4,1},{7,1}};
     //lcd.setCursor(Column, Row);
     //Serial.print("editclock position = "); Serial.println(i);
     lcd.setCursor(cursorPositions[i][0],cursorPositions[i][1]);
@@ -690,10 +694,10 @@ void editClock(byte i=0){
 
 void editAlarm(byte i=0){
     /* Alarm 1      ON
-     hh:mm AM Weekday            hh    mm    AM   Weekday */
+       hh:mm    PWSCPSN*/
     //Note valid i values are 0-3
     //lcd.setCursor(Column, Row);
-    byte cursorPositions[][2] = {{1,1},{4,1},{7,1},{9,1}};
+    byte cursorPositions[][2] = {{1,1},{4,1},{9,1},{10,1},{11,1},{12,1},{13,1},{14,1},{15,1}};
     //Serial.print("editAlarm position = ");Serial.println(i);
     lcd.setCursor(cursorPositions[i][0],cursorPositions[i][1]);
     lcd.cursor();
@@ -734,7 +738,9 @@ void ButtonClick(Button& b){
         bHoldButtonFlag = false;
     } else {
         //PowerLoss,ShowClock, Alarm, EditClock, EditAlarm1, EditAlarm2
+        byte alarm = alarm2;
         bool shouldIncrement = true;
+        byte dowToChange=0;
 
         switch (ClockState){
             case PowerLoss:
@@ -773,31 +779,30 @@ void ButtonClick(Button& b){
                     case Lt_Pin:
                         shouldIncrement = false;
                     case Rt_Pin:
-                        // Decrements value
-                        // First Row  hh:mm dt PWSCPSN
-                        //             0  1  
-                        // Second Row dd/mm/yyyy ##.#°
-                        //             2  3    4
+                        // First  Row dd/mm/yyyy ##.#°
+                        //             0  1    2
+                        // Second Row hh:mm dt PWSCPSN
+                        //             3  4
                         switch (cpIndex){
                             case 0:
-                                //edit Hours
-                                changeHour(clock0, shouldIncrement);
-                                break;
-                            case 1:
-                                //edit Minute
-                                changeMinute(clock0, shouldIncrement);
-                                break;
-                            case 2:
                                 //edit day
                                 changeDay(clock0, shouldIncrement);
                                 break;
-                            case 3:
+                            case 1:
                                 //edit month
                                 changeMonth(clock0, shouldIncrement);
                                 break;
-                            case 4:
+                            case 2:
                                 //edit year
                                 changeYear(clock0, shouldIncrement);
+                                break;
+                            case 3:
+                                //edit Hours
+                                changeHour(clock0, shouldIncrement);
+                                break;
+                            case 4:
+                                //edit Minute
+                                changeMinute(clock0, shouldIncrement);
                                 break;
                             default:
                                 //do nothing
@@ -811,53 +816,41 @@ void ButtonClick(Button& b){
                 //End EditClock
                 break;
             case EditAlarm1:
-                //Edit Alarm1 Mode
+                //Edit Alarm1
+                alarm = alarm1;
+            case EditAlarm2:
+                //Edit Alarm2
                 switch (b.pinValue()){
                     case Snooze_Pin:
                         //Increments cursor position
                         cpIndex += 1;
-                        cpIndex %= 4;
-                        //cpIndex += 1 % 4; didn't work
+                        cpIndex %= 9;
                         break;
                     case Lt_Pin:
-                        // Decrements value      hh:mm Weekday
-                        //cpIndex is global
-                        switch (cpIndex){
-                            case 0:
-                                //edit Hours
-                                changeHour(alarm1, false);
-                                break;
-                            case 1:
-                                //edit Minute
-                                changeMinute(alarm1, false);
-                                break;
-                            case 3:
-                                //AlarmMode
-                                changeAlarmMode(alarm1, false);
-                                break;
-                            default:
-                                //do nothing
-                                break;
-                        }
-                        break;
+                        // Decrements value 
+                        shouldIncrement = false;
                     case Rt_Pin:
                         // Increments value
-                        //cpIndex is global
+                        // Second Row hh:mm PWSCPSN
+                        //             0  1 2345678 
                         switch (cpIndex){
                             case 0:
                                 //edit Hours
-                                changeHour(alarm1, true);
+                                changeHour(alarm, true);
                                 break;
                             case 1:
                                 //edit Minute
-                                changeMinute(alarm1, true);
+                                changeMinute(alarm, true);
                                 break;
                             case 2:
-                                //edit ClockMode
-                                break;
                             case 3:
-                                //AlarmMode
-                                changeAlarmMode(alarm1, true);
+                            case 4:
+                            case 5:
+                            case 6:
+                            case 7:
+                            case 8:
+                                dowToChange = (cpIndex == 8)? 1 : cpIndex; // Nd is on last position but clock library assumes Sun is on 1-st position: Nd (8) -> Sun (1)
+                                changeEnabledDows(alarm, dowToChange);
                                 break;
                             default:
                                 //do nothing
@@ -867,67 +860,6 @@ void ButtonClick(Button& b){
                     default:
                         //do nothing
                         break;
-                }
-                break;
-            case EditAlarm2:
-                //Edit Alarm2 Mode
-                switch (b.pinValue()){
-                    case Snooze_Pin:
-                        //Increments cursor position
-                        cpIndex += 1;
-                        cpIndex %= 4;
-                        break;
-                    case Lt_Pin:
-                        // Decrements value      hh:mm AM Weekday
-                        //cpIndex is global
-                        switch (cpIndex){
-                            case 0:
-                            //edit Hours
-                            changeHour(alarm2, false);
-                            break;
-                        case 1:
-                            //edit Minute
-                            changeMinute(alarm2, false);
-                            break;
-                        case 2:
-                            //edit ClockMode
-                            break;
-                        case 3:
-                            //AlarmMode
-                            changeAlarmMode(alarm2, false);
-                            break;
-                            default:
-                            //do nothing
-                            break;
-                        }
-                        break;
-                    case Rt_Pin:
-                        // Increments value
-                        //cpIndex is global
-                        switch (cpIndex){
-                            case 0:
-                                //edit Hours
-                                changeHour(alarm2, true);
-                                break;
-                            case 1:
-                                //edit Minute
-                                changeMinute(alarm2, true);
-                                break;
-                            case 2:
-                                //edit ClockMode
-                                break;
-                            case 3:
-                                //AlarmMode
-                                changeAlarmMode(alarm2, true);
-                                break;
-                            default:
-                                //do nothing
-                                break;
-                        }
-                        break;
-                    default:
-                    //do nothing
-                    break;
                 }
                 break;
             default:
@@ -1102,13 +1034,6 @@ void ButtonHold(Button& b){
     }
 }
 
-/* //char *dow2Str(byte bDow) {
-//  // Day of week to string or char array. DOW 1=Sunday, 0 is undefined
-//  static const char *str[] = {"---", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
-//  if (bDow > 7) bDow = 0;
-//  return(str[bDow]);
-//} */
-
 String dow2Str(byte bDow) {
     // Day of week to string or char array. DOW 1=Sunday, 0 is undefined
     static const char *str[] = {"---", "Nd", "Pn", "Wt", "Sr", "Cz", "Pt", "So"};
@@ -1174,35 +1099,46 @@ byte CheckAlarmStatus(){
 }
 
 
-void lcdAlarmIndicator(){
-    byte alarmEnabledStatus;
-
-    alarmEnabledStatus = Clock.alarmStatus();
+void printAlarmIndicators(byte alarmEnabledStatus, byte enabledDows1, byte enabledDows2){
     /* Returns:
        0 - No alarms
        1 - Alarm 1 enabled
        2 - Alarm 2 enabled
        3 - Both alarms enabled
      */
-    switch (alarmEnabledStatus){
-        case 0:
-            //No alarms
-            lcd.print("-");
-            break;
-        case 1:
-            //alarm 1 enabled
-            lcd.write(1); //cA1
-            break;
-        case 2:
-            //alarm 2 enabled
-            lcd.write(2); //cA2
-            break;
-        case 3:
-            //both alarms enabled
-            lcd.write(3); //cBA
-            break;
-        default:
-            break;
+    static char dowLetters[] = {'-', 'P', 'W',  'S',  'C',  'P',  'S',  'N'}; 
+    for (byte i = 2; i <=8; i++) {
+        byte dow = (i > 7)? 1 : i;
+
+        byte alarmEnabledOnDow = (enabledDows1 >> dow) & 1;
+        if (!alarmEnabledOnDow) {
+          alarmEnabledStatus &= 0b10;
+        }
+
+        alarmEnabledOnDow = (enabledDows2 >> dow) & 1;
+        if (!alarmEnabledOnDow) {
+          alarmEnabledStatus &= 0b01;
+        }
+        switch (alarmEnabledStatus){
+            case 0:
+                //No alarms
+                lcd.print(dowLetters[i-1]);
+                break;
+            case 1:
+                //alarm 1 enabled
+                lcd.write(1); //cA1
+                break;
+            case 2:
+                //alarm 2 enabled
+                lcd.write(2); //cA2
+                break;
+            case 3:
+                //both alarms enabled
+                lcd.write(3); //cBA
+                break;
+            default:
+                break;
+        }
     }
 }
 
