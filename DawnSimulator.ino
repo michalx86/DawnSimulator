@@ -160,10 +160,10 @@ const byte LCD_CHAR_DOWN_ARROW  = 5;
     //Alarm 1 indicator
     byte cA1[8] = {
                   0b00100,
-                  0b01110,
+                  0b01010,
+                  0b10001,
                   0b11111,
-                  0b00000,
-                  0b00000,
+                  0b00100,
                   0b00000,
                   0b00000,
                   0b00000 };
@@ -172,20 +172,20 @@ const byte LCD_CHAR_DOWN_ARROW  = 5;
                   0b00000,
                   0b00000,
                   0b00000,
-                  0b00000,
-                  0b00000,
+                  0b00100,
+                  0b01010,
+                  0b10001,
                   0b11111,
-                  0b01110,
                   0b00100 };
     //Both arrows indicator
     byte cBA[8] = {
                   0b00100,
-                  0b01110,
+                  0b01010,
+                  0b10001,
                   0b11111,
-                  0b00000,
-                  0b00000,
+                  0b01010,
+                  0b10001,
                   0b11111,
-                  0b01110,
                   0b00100 };
     //Up Arrow
     byte cUpArrow[8] = {
