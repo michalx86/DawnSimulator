@@ -40,24 +40,48 @@
 #include <LiquidCrystal_I2C.h>
 #include <Button.h>                    // https://github.com/rmorenojr/Button
 #include <EEPROM.h>
+#include "LightProfile.h"
 
 /* ***********************************************************
  *                    LED Control Constants                  *
  * ********************************************************* */
 
+#ifdef ESP32
+const int LightSensor_Pin = 04;
+const int Led_WW_Pin = 5;       // PWM
+const int Switch_Pin = 17;
+const int Mode_Pin = 16;
+const int Lt_Pin = 27;
+const int Rt_Pin = 14;
+const int LED_Pin = 2;         // digital pin for internal LED
+const int SQW_Pin = 26;        // Interrrupt pin
+// use first channel of 16 channels (started from zero)
+#define LEDC_CHANNEL_0     0
+#else
+const int LightSensor_Pin = 04;
+const int Led_WW_Pin = 5;
+const int Switch_Pin = 8;
+const int Mode_Pin = 9;
+const int Lt_Pin = 10;
+const int Rt_Pin = 11;
+const int LED_Pin = 13;
+const int SQW_Pin = 2;
+#define IRAM_ATTR
+#define log_d(...)
+#define log_e(...)
+#define LEDC_CHANNEL_0 Led_WW_Pin
+#define portENTER_CRITICAL(...)
+#define portEXIT_CRITICAL(...)
+#endif
+
 const unsigned EEPROM_SIZE = 2;
 const unsigned EEPROM_ADDR_TARGET_LED_LEVEL = 0x0;
 
-const int led_weak_pin = 5; // PWM
-const int led_strong_pin = 3; // PWM
 
-const unsigned LIGHTENING_PERIOD_BASE = 0xFFFF;
-const unsigned ALARM_LIGHTENING_PERIOD_DIVISOR = 0x10;
-const unsigned SWITCH_LIGHTENING_PERIOD_DIVISOR = 0x1000;
+LightProfile switchLightProfile(LightProfileName::Switch);
+LightProfile alarmLightProfile(LightProfileName::Alarm);
+LightProfile &lightProfile = switchLightProfile;
 
-const unsigned LED_STRIP_WEAK_LEVEL_COUNT = 256;
-const unsigned LED_STRIP_STRONG_LEVEL_COUNT = 255;
-const unsigned LED_STRIP_LEVEL_COUNT = LED_STRIP_WEAK_LEVEL_COUNT + LED_STRIP_STRONG_LEVEL_COUNT;
 const unsigned LIGHT_LEVEL_ALLOWED_DIFF = 10;
 const unsigned DIMMING_INTERVAL_MS = 10;
 
@@ -65,7 +89,6 @@ unsigned ledLevel = 0;
 unsigned targetLedLevel = 0;
 int ledStepDir = 0;
 unsigned lightLevelAtBrightening = 0;
-unsigned lighteningPeriodDivisor = ALARM_LIGHTENING_PERIOD_DIVISOR;
 
 /* ***********************************************************
  *                      Global Constants                     *
@@ -96,19 +119,12 @@ const byte LCD_CHAR_DOWN_ARROW  = 5;
     // instantiate SimpleAlarmClock
     SimpleAlarmClock Clock(RTC_addr, EEPROM_addr, INTCN);
 
-    const int LightSensor_Pin = 04;
-    const int Switch_Pin = 17;
-    const int Mode_Pin = 16;
-    const int Lt_Pin = 27;
-    const int Rt_Pin = 14;
     const int DebouceTime = 30;               // button debouce time in ms
-    Button ModeKey(Mode_Pin, BUTTON_PULLUP, true, DebouceTime);
-    Button LtKey(Lt_Pin, BUTTON_PULLUP, true, DebouceTime);
-    Button RtKey(Rt_Pin, BUTTON_PULLUP, true, DebouceTime);
-    Button SwitchKey(Switch_Pin, BUTTON_PULLUP, true, DebouceTime);
+    Button ModeKey(Mode_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
+    Button LtKey(Lt_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
+    Button RtKey(Rt_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
+    Button SwitchKey(Switch_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
 
-    const int LED_Pin = 2;                 // digital pin for LED
-    const int SQW_Pin = 26;                  // Interrrupt pin
     const int Button_Hold_Time = 3000;      // button hold length of time in ms
     const int Alarm_View_Pause = 2000;      // View Alarm Length of time in ms
     const int SkipClickTime = 60;           // Time in ms to ignore button click
@@ -128,8 +144,6 @@ const byte LCD_CHAR_DOWN_ARROW  = 5;
  *                      Global Variables                     *
  * ********************************************************* */
 
-    unsigned ledStepInterval = 0;          // Interval till next Led Strip Step
-
     enum States {
         PowerLoss,
         ShowClock,
@@ -145,9 +159,10 @@ const byte LCD_CHAR_DOWN_ARROW  = 5;
 
     byte HourType = 0;                // 0=AM/PM, 1=24hour - used in display alarm - to be deleted
     float CurrentTemperature;         // Maybe move as static variable under displayClock function
-    unsigned long RunTime;            // Used to track time between get temperature value
-    unsigned long buttonHoldPrevTime = 0.0;  // Used to track button hold times 
-    unsigned long AlarmRunTime;
+    unsigned long RunTime = 0;             // Used to track time between get temperature value
+    unsigned long buttonHoldPrevTime = 0;  // Used to track button hold times 
+    unsigned long AlarmRunTime = 0;
+    //unsigned long ClockPercentRunTime = 0;
     DateTime PreviousTime;            // Maybe move as static variable under displayClock function
     int PreviousLedLevelPercent = -1;
     AlarmTime PreviousAlarm;          // Maybe move as static variable under displayAlarm function
@@ -209,63 +224,43 @@ const byte LCD_CHAR_DOWN_ARROW  = 5;
                     0b00001 };
 
     // For ISR
+#ifdef ESP32
     portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
-    volatile unsigned alarmIntrCounter = 0;
+#endif
+volatile unsigned alarmIntrCounter = 0;
 
 /* ***********************************************************
  *                         Functions                         *
  * ********************************************************* */
-unsigned toPercent(unsigned x, unsigned whole) {
-  return x * 100 / whole;
+
+void ledcAnalogWrite(uint8_t channel, uint32_t duty) {
+#ifdef ESP32
+  // write duty to LEDC
+  ledcWrite(channel, duty);
+#else
+  analogWrite(channel,duty);
+#endif
 }
 
-unsigned calcLighteningStepDelay(unsigned level) {
-  if (level >= LED_STRIP_LEVEL_COUNT) {
-    return 0;
-  }
-  return (LIGHTENING_PERIOD_BASE-level*level)/lighteningPeriodDivisor;
-  
-}
 
-void ledWeakWrite(unsigned val) {
-  static unsigned last_led_weak_value = 255;
 
-  if (val != last_led_weak_value) {
-    last_led_weak_value = val;
-    //TODO analogWrite(led_weak_pin, last_led_weak_value);
-  }
-}
+void ledWwWrite(unsigned val) {
+  static unsigned last_led_ww_value = 255;
 
-void ledStrongWrite(unsigned val) {
-  static unsigned last_led_strong_value = 255;
-
-  if (val != last_led_strong_value) {
-    last_led_strong_value = val;
-    //TODO analogWrite(led_strong_pin, last_led_strong_value);
+  if (val != last_led_ww_value) {
+    last_led_ww_value = val;
+    ledcAnalogWrite(LEDC_CHANNEL_0, last_led_ww_value);
   }
 }
 
 void makeLedLight(unsigned level) {
-  unsigned led_weak_value = 0;
-  unsigned led_strong_value = 0;
-  
-  if (level < LED_STRIP_WEAK_LEVEL_COUNT) {
-    led_weak_value = level;
-  } else {
-    led_weak_value = LED_STRIP_WEAK_LEVEL_COUNT - 1;
-    led_strong_value = level - led_weak_value;
-    if (led_strong_value > LED_STRIP_STRONG_LEVEL_COUNT) {
-      led_strong_value = LED_STRIP_STRONG_LEVEL_COUNT;
-    }
-  }
 
-//  Serial.print("W: ");
-//  Serial.print(led_weak_value);
-//  Serial.print(",S: ");
-//  Serial.println(led_strong_value);
+  Serial.print("WW: ");
+  Serial.print(level);
+  Serial.print(",");
+  Serial.println(lightProfile[level]);
   
-  ledWeakWrite(led_weak_value);
-  ledStrongWrite(led_strong_value);
+  ledWwWrite(lightProfile[level]);
 }
 
 void displayClock(bool changeFlag=false) {
@@ -278,7 +273,6 @@ void displayClock(bool changeFlag=false) {
    * ***************************************************** */
     DateTime NowTime;            //create DateTime struct from Library
     NowTime = Clock.read();      // get the latest clock values
-
     // CheckFlag Section:
     // The DS3231 temperature can be read once every 64 seconds.
     // Check the temperature every 65 seconds
@@ -301,8 +295,8 @@ void displayClock(bool changeFlag=false) {
     int percent = 0;
     if (ledStepDir != 0) {
         // Check for LedLevel change
-        percent = toPercent(ledLevel,LED_STRIP_LEVEL_COUNT);
-        if (PreviousLedLevelPercent != percent) {
+        percent = lightProfile.toPercent(ledLevel);
+        if ((PreviousLedLevelPercent != percent)) { // && (millis() - ClockPercentRunTime > 300)
           PreviousLedLevelPercent = percent;
           changeFlag = true;
         }
@@ -311,8 +305,6 @@ void displayClock(bool changeFlag=false) {
     //Update Display - Only change display if change is detected
     if (changeFlag == true){
         //lcd.clear();
-
-        
 
         // First Row dd/mm/yyyy ##.#°
         lcd.setCursor(0,0);                       // Column, Row
@@ -341,11 +333,13 @@ void displayClock(bool changeFlag=false) {
           printAlarmIndicators(Clock.alarmStatus(),  Clock.readAlarm(alarm1).EnabledDows, Clock.readAlarm(alarm2).EnabledDows);
           PreviousLedLevelPercent = -1;
         } else {
-          unsigned targetPercent = toPercent(targetLedLevel,LED_STRIP_LEVEL_COUNT);
+          int targetPercent = lightProfile.toPercent(targetLedLevel); 
           printLedStatus(percent, targetPercent, ledStepDir);
         }
 
         PreviousTime = Clock.read();
+
+        //ClockPercentRunTime = millis();
     }
 }
 
@@ -782,11 +776,14 @@ void ButtonClick(Button& b){
         if (b.pinValue() == Switch_Pin) {
             ledStepDir = 0;
             targetLedLevel = ledLevel;
-            EEPROM.write(EEPROM_ADDR_TARGET_LED_LEVEL,targetLedLevel);
-            EEPROM.write(EEPROM_ADDR_TARGET_LED_LEVEL + 1, targetLedLevel >> 8);
+            uint16_t targetLedValue = lightProfile[ledLevel];
+            EEPROM.write(EEPROM_ADDR_TARGET_LED_LEVEL,targetLedValue);
+            EEPROM.write(EEPROM_ADDR_TARGET_LED_LEVEL + 1, targetLedValue >> 8);
+#ifdef ESP32
             EEPROM.commit();
-            Serial.print("Saved target alarm LED light level at: ");
-            Serial.println(targetLedLevel);
+#endif
+            Serial.print("Saved target alarm LED light value at: ");
+            Serial.println(targetLedValue);
         } else {
             // ignore clicks for SkipClickTime ms
             // if ((millis() - buttonHoldPrevTime) > SkipClickTime) { bHoldButtonFlag = false;}
@@ -931,7 +928,8 @@ void ButtonClick(Button& b){
           } else {
               ledStepDir = -1;
           }
-          lighteningPeriodDivisor = SWITCH_LIGHTENING_PERIOD_DIVISOR;
+          lightProfile = switchLightProfile;
+          displayClock(true);
           Serial.print("New ledStepDir: ");
           Serial.println(ledStepDir);
         }
@@ -1096,7 +1094,8 @@ void ButtonHold(Button& b){
         if (b.pinValue() == Switch_Pin) {
             ledStepDir = 1;
             ledLevel = 0;
-            lighteningPeriodDivisor = SWITCH_LIGHTENING_PERIOD_DIVISOR;
+            targetLedLevel = lightProfile.samplesNum() - 1;
+            lightProfile = switchLightProfile;
             Serial.println("Setting target alarm LED light level started...");
             bHoldButtonFlag = true;
         }
@@ -1128,13 +1127,13 @@ float getTemperatureValue(){
     return Clock.getTemperatureFloat();
 }
 
-
 void IRAM_ATTR AlarmIntrCallback() {
   portENTER_CRITICAL(&mux);
   alarmIntrCounter++;
   Serial.print("I S R !!!! ");
   portEXIT_CRITICAL(&mux);
 }
+
 byte CheckAlarmStatus(){
     /* Returns:
      0 - No alarms
@@ -1252,8 +1251,7 @@ void printLedStatus(int percent, int targetPercent, int dir) {
 void setup() {
     // Get the start time
     RunTime = millis();
-
-    EEPROM.begin(EEPROM_SIZE);
+    // ClockPercentRunTime = buttonHoldPrevTime = AlarmRunTime =
 
     //Serial Monitor
     Serial.begin(500000);
@@ -1266,25 +1264,33 @@ void setup() {
     log_d("Total PSRAM: %d", ESP.getPsramSize());
     log_d("Free PSRAM: %d", ESP.getFreePsram());
 
-    /*         Pin Modes            */
-    pinMode(led_weak_pin, OUTPUT);
-    //pinMode(led_strong_pin, OUTPUT);
+    log_d("DUTY_MAX: %u", DUTY_MAX);
+
+
+#ifdef ESP32
+    EEPROM.begin(EEPROM_SIZE);
+
+    // Setup timer and attach timer to a led pin
+    ledcSetup(LEDC_CHANNEL_0, LEDC_BASE_FREQ, LEDC_TIMER_13_BIT);
+    ledcAttachPin(Led_WW_Pin, LEDC_CHANNEL_0);
+#else
+    pinMode(Led_WW_Pin, OUTPUT);
+#endif
     makeLedLight(0);
+
+    /*         Pin Modes            */
+
     pinMode(LED_Pin, OUTPUT);
     digitalWrite(LED_Pin, HIGH);
     pinMode(SQW_Pin, INPUT);
 
     //pinMode(LightSensor_Pin, INPUT);
-    byte targetLedLevelLow = EEPROM.read(EEPROM_ADDR_TARGET_LED_LEVEL);
-    byte targetLedLevelHigh = EEPROM.read(EEPROM_ADDR_TARGET_LED_LEVEL + 1);
-    targetLedLevel = ((unsigned)targetLedLevelHigh << 8) + (unsigned)targetLedLevelLow;
-    if (targetLedLevel > LED_STRIP_LEVEL_COUNT) {
-        targetLedLevel = LED_STRIP_LEVEL_COUNT;
-    }
+    byte targetLedValueLow = EEPROM.read(EEPROM_ADDR_TARGET_LED_LEVEL);
+    byte targetLedValueHigh = EEPROM.read(EEPROM_ADDR_TARGET_LED_LEVEL + 1);
+    uint16_t targetLedValue = ((uint16_t)targetLedValueHigh << 8) + (uint16_t)targetLedValueLow;
+    targetLedLevel = lightProfile.sampleHigherOrEqual(targetLedValue);
     Serial.print("Target Alarm LED level: ");
     Serial.println(targetLedLevel);
-
-    attachInterrupt(digitalPinToInterrupt(SQW_Pin), AlarmIntrCallback, FALLING);
 
     /*          LCD Stuff           */
     lcd.init();                      // initialize the lcd 
@@ -1323,6 +1329,9 @@ void setup() {
 
     lcd.backlight();
     lcd.print("Hi");
+
+    attachInterrupt(digitalPinToInterrupt(SQW_Pin), AlarmIntrCallback, FALLING);
+
     //Debug code
     Serial.print("Register 0x0E = ");Serial.println(Clock.getCtrlRegister(), BIN);
     Serial.print("Register 0x0F = ");Serial.println(Clock.getStatusRegister(), BIN);
@@ -1333,8 +1342,8 @@ void setup() {
  *                         Void Loop                         *
  * ********************************************************* */
 void loop() {
-    static long previousLcdMillis = 0;
-    static long previousLedMillis = 0;
+    static unsigned long previousLcdMillis = 0;
+    static unsigned long previousLedMillis = 0;
     //if (ClockState != PrevState) { Serial.print("ClockState = ");Serial.println(ClockState); PrevState = ClockState;}
 
     switch (ClockState){
@@ -1403,23 +1412,23 @@ void loop() {
     }
 
     if (ledStepDir != 0) {
-        ledStepInterval = calcLighteningStepDelay(ledLevel);
-        if ((millis()-previousLedMillis) >= ledStepInterval) {
-            previousLedMillis = millis();
+        unsigned long mills = millis();
+        unsigned long delta = mills-previousLedMillis;
+
+        if (delta > lightProfile.getSampleDuration()) {
+            previousLedMillis = mills;
 
             if (((ledStepDir ==  1) && (ledLevel < targetLedLevel)) ||
-                ((ledStepDir ==  1) && bHoldButtonFlag && (ledLevel < LED_STRIP_LEVEL_COUNT)) ||
+                ((ledStepDir ==  1) && bHoldButtonFlag && (ledLevel + 1 < lightProfile.samplesNum())) ||
                 ((ledStepDir == -1) && (ledLevel > 0)))
             {
-                ledLevel += ledStepDir;
-                makeLedLight(ledLevel);
-                displayClock(false);
+                // OK to go on
+              ledLevel += ledStepDir;
+              makeLedLight(ledLevel);
+              lightLevelAtBrightening = analogRead(LightSensor_Pin);
+              displayClock(false);
             } else {
-                ledStepDir = 0;
-            }
-
-            if (ledStepDir ==  1) {
-                lightLevelAtBrightening = analogRead(LightSensor_Pin);
+              ledStepDir = 0;
             }
         }
     } else {
@@ -1441,6 +1450,6 @@ void loop() {
         Serial.print("Active alarms: ");
         Serial.println(activeAlarms);
         ledStepDir = 1;
-        lighteningPeriodDivisor = ALARM_LIGHTENING_PERIOD_DIVISOR;
+        lightProfile = alarmLightProfile;
     }
 }

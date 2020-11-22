@@ -3,6 +3,6 @@
 
 int main()
 {
-    std::cout << "Result: " << LightProfile().samplesNum() << std::endl;
+    std::cout << "Result: " << LightProfile(LightProfileName::Alarm).samplesNum() << std::endl;
     return 0;
 }
