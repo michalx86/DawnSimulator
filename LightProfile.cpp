@@ -6,11 +6,11 @@
 const unsigned ALARM_LIGHTENING_PERIOD_MS = 20 * 60 * 1000;
 const unsigned SWITCH_LIGHTENING_PERIOD_MS = 2000;
 
-static uint8_t alarm_arr[10] = {};
-static uint8_t switch_arr[5] = {};
+static uint16_t alarm_arr[10] = {};
+static uint16_t switch_arr[120] = {};
 
 LightProfile::LightProfile(LightProfileName profileName): profile(profileName) {
-  uint8_t* arr = nullptr; 
+  uint16_t* arr = nullptr;
   switch (profile) {
     case LightProfileName::Alarm : arr = &alarm_arr[0]; break;
     case LightProfileName::Switch : arr = &switch_arr[0]; break;

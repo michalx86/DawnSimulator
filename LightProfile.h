@@ -12,7 +12,7 @@
 
 
 // calculate duty, 8191 from 2 ^ 13 - 1
-const unsigned DUTY_MAX = 255; //(1 << LEDC_TIMER_13_BIT) - 1;
+const unsigned DUTY_MAX = (1 << LEDC_TIMER_13_BIT) - 1;
 
 enum class LightProfileName {
   Alarm,

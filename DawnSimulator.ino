@@ -46,6 +46,7 @@
  *                    LED Control Constants                  *
  * ********************************************************* */
 
+#define ESP32
 #ifdef ESP32
 const int LightSensor_Pin = 04;
 const int Led_WW_Pin = 5;       // PWM
@@ -162,7 +163,7 @@ const byte LCD_CHAR_DOWN_ARROW  = 5;
     unsigned long RunTime = 0;             // Used to track time between get temperature value
     unsigned long buttonHoldPrevTime = 0;  // Used to track button hold times 
     unsigned long AlarmRunTime = 0;
-    //unsigned long ClockPercentRunTime = 0;
+    unsigned long ClockPercentRunTime = 0;
     DateTime PreviousTime;            // Maybe move as static variable under displayClock function
     int PreviousLedLevelPercent = -1;
     AlarmTime PreviousAlarm;          // Maybe move as static variable under displayAlarm function
@@ -255,10 +256,10 @@ void ledWwWrite(unsigned val) {
 
 void makeLedLight(unsigned level) {
 
-  Serial.print("WW: ");
+  /*Serial.print("WW: ");
   Serial.print(level);
   Serial.print(",");
-  Serial.println(lightProfile[level]);
+  Serial.println(lightProfile[level]);*/
   
   ledWwWrite(lightProfile[level]);
 }
@@ -296,7 +297,7 @@ void displayClock(bool changeFlag=false) {
     if (ledStepDir != 0) {
         // Check for LedLevel change
         percent = lightProfile.toPercent(ledLevel);
-        if ((PreviousLedLevelPercent != percent)) { // && (millis() - ClockPercentRunTime > 300)
+        if ((PreviousLedLevelPercent != percent) && (millis() - ClockPercentRunTime > 300)) {
           PreviousLedLevelPercent = percent;
           changeFlag = true;
         }
@@ -339,7 +340,8 @@ void displayClock(bool changeFlag=false) {
 
         PreviousTime = Clock.read();
 
-        //ClockPercentRunTime = millis();
+        //log_d("Clock percent delta: %lu", millis() - ClockPercentRunTime);
+        ClockPercentRunTime = millis();
     }
 }
 
@@ -1251,7 +1253,6 @@ void printLedStatus(int percent, int targetPercent, int dir) {
 void setup() {
     // Get the start time
     RunTime = millis();
-    // ClockPercentRunTime = buttonHoldPrevTime = AlarmRunTime =
 
     //Serial Monitor
     Serial.begin(500000);
@@ -1264,7 +1265,7 @@ void setup() {
     log_d("Total PSRAM: %d", ESP.getPsramSize());
     log_d("Free PSRAM: %d", ESP.getFreePsram());
 
-    log_d("DUTY_MAX: %u", DUTY_MAX);
+    log_i("DUTY_MAX: %u", DUTY_MAX);
 
 
 #ifdef ESP32
@@ -1289,7 +1290,9 @@ void setup() {
     byte targetLedValueHigh = EEPROM.read(EEPROM_ADDR_TARGET_LED_LEVEL + 1);
     uint16_t targetLedValue = ((uint16_t)targetLedValueHigh << 8) + (uint16_t)targetLedValueLow;
     targetLedLevel = lightProfile.sampleHigherOrEqual(targetLedValue);
-    Serial.print("Target Alarm LED level: ");
+    Serial.print("Target Alarm LED value: ");
+    Serial.print(targetLedValue);
+    Serial.print(" --> level: ");
     Serial.println(targetLedLevel);
 
     /*          LCD Stuff           */
@@ -1414,6 +1417,8 @@ void loop() {
     if (ledStepDir != 0) {
         unsigned long mills = millis();
         unsigned long delta = mills-previousLedMillis;
+//        Serial.print("D:");
+//        Serial.println(delta);
 
         if (delta > lightProfile.getSampleDuration()) {
             previousLedMillis = mills;
@@ -1428,6 +1433,7 @@ void loop() {
               lightLevelAtBrightening = analogRead(LightSensor_Pin);
               displayClock(false);
             } else {
+              displayClock(true);
               ledStepDir = 0;
             }
         }
