@@ -1,12 +1,16 @@
 #include <gtest/gtest.h>
-#include "../LightProfile.h"
 
-TEST(TestLcdTS, TestLcdCommands)
+#define String std::string
+#define byte uint8_t
+#include "../Lcd.h"
+
+TEST(TestLcd, TestLcdPrint)
 {
-    LightProfile lp(LightProfileName::Alarm);
-    auto value = lp.samplesNum();
+    Lcd lcd;
+    auto value = lcd.print("");
 
-    ASSERT_EQ(10, value);
+    ASSERT_EQ(0, value);
 }
+
 
 

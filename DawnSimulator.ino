@@ -36,12 +36,12 @@
 /* ***********************************************************
  *                         Libraries                         *
  * ********************************************************* */
-//#include <Esp.h>
+#include <Esp.h>
 #include "SimpleAlarmClock.h"          // https://github.com/rmorenojr/SimpleAlarmClock
-#include <LiquidCrystal_I2C.h>
 #include <Button.h>                    // https://github.com/rmorenojr/Button
 #include <EEPROM.h>
 #include "LightProfile.h"
+#include "Lcd_I2C.h"
 
 /* ***********************************************************
  *                    LED Control Constants                  *
@@ -96,14 +96,8 @@ unsigned lightLevelAtBrightening = 0;
  *                      Global Constants                     *
  *                    Hardware Definitions                   *
  * ********************************************************* */
-    LiquidCrystal_I2C lcd(0x27,20,4);  // set the LCD address to 0x27 for a 16 chars and 2 line display
+Lcd_I2C lcd;
                                              
-const byte LCD_CHAR_ALARM1      = 1;
-const byte LCD_CHAR_ALARM2      = 2;
-const byte LCD_CHAR_BOTH_ALARMS = 3;
-const byte LCD_CHAR_UP_ARROW    = 4;
-const byte LCD_CHAR_DOWN_ARROW  = 5;
-
     const byte RTC_addr=0x68;                // I2C address of DS3231 RTC
     const byte EEPROM_addr=0x57;             // I2C address of AT24C32N EEPROM
     const bool INTCN = true;                 // allows SQW pin to be monitored
@@ -172,58 +166,6 @@ const byte LCD_CHAR_DOWN_ARROW  = 5;
     byte cpIndex = 0;                 // Cursor Position Index - used for edit mode
     bool bHoldButtonFlag = false;     // used to prevent holdButton also activating clickButton
     bool bDisplayStatus = true;       // used to track the lcd display on status
-
-    //custom LCD characters: https://omerk.github.io/lcdchargen/
-    //Alarm 1 indicator
-    byte cA1[8] = {
-                  0b00100,
-                  0b01010,
-                  0b10001,
-                  0b11111,
-                  0b00100,
-                  0b00000,
-                  0b00000,
-                  0b00000 };
-    //Alarm 2 indicator
-    byte cA2[8] = {
-                  0b00000,
-                  0b00000,
-                  0b00000,
-                  0b00100,
-                  0b01010,
-                  0b10001,
-                  0b11111,
-                  0b00100 };
-    //Both arrows indicator
-    byte cBA[8] = {
-                  0b00100,
-                  0b01010,
-                  0b10001,
-                  0b11111,
-                  0b01010,
-                  0b10001,
-                  0b11111,
-                  0b00100 };
-    //Up Arrow
-    byte cUpArrow[8] = {
-                    0b00001,
-                    0b00011,
-                    0b00111,
-                    0b01111,
-                    0b10111,
-                    0b00101,
-                    0b01100,
-                    0b11000 };
-    //Downd Arrow
-    byte cDownArrow[8] = {
-                    0b11000,
-                    0b01100,
-                    0b00101,
-                    0b10111,
-                    0b01111,
-                    0b00111,
-                    0b00011,
-                    0b00001 };
 
     // For ISR
 #ifdef ESP32
@@ -1297,15 +1239,6 @@ void setup() {
 
     /*          LCD Stuff           */
     lcd.init();                      // initialize the lcd 
-    lcd.begin(16, 2);
-    lcd.setCursor(3,0);
-
-    //Create custom lcd characters
-    lcd.createChar(LCD_CHAR_ALARM1, cA1);
-    lcd.createChar(LCD_CHAR_ALARM2, cA2);
-    lcd.createChar(LCD_CHAR_BOTH_ALARMS, cBA);
-    lcd.createChar(LCD_CHAR_UP_ARROW, cUpArrow);
-    lcd.createChar(LCD_CHAR_DOWN_ARROW, cDownArrow);
 
     /*         Clock Stuff          */
     Clock.begin();
@@ -1329,9 +1262,6 @@ void setup() {
 
     //Display the clock
     displayClock(true);
-
-    lcd.backlight();
-    lcd.print("Hi");
 
     attachInterrupt(digitalPinToInterrupt(SQW_Pin), AlarmIntrCallback, FALLING);
 
