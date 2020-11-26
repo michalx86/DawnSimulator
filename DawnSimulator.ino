@@ -1,3 +1,4 @@
+
 /* ***********************************************************
  * RTC_Alarm sketch - v1.0
  *   Uses the ZS-040 module, aka DS3231 RTC module
@@ -319,7 +320,6 @@ void displayClock(bool changeFlag=false) {
         lcd.print(String(CurrentTemperature,1));  // converts float to string
                                                   // with 1 decimal place
         lcd.print((char)223);                     // prints the degree symbol
-        lcd.print("C");
         
         // Second Row  hh:mm dt PWSCPSN
         lcd.setCursor(0,1);                       //Column, Row

@@ -1,9 +1,12 @@
-cmake_minimum_required(VERSION 3.6)
+cmake_minimum_required(VERSION 3.13)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project(DawnSimulator)
+
+find_package(GTest REQUIRED)
+message("GTest_INCLUDE_DIRS = ${GTest_INCLUDE_DIRS}")
 
 set(SRC_LIST
     ../LightProfile.cpp
@@ -23,3 +26,12 @@ add_executable(${PROJECT_NAME}-ut ${TEST_SRC_LIST})
 target_compile_options(${PROJECT_NAME}-ut PUBLIC -g -O0 -Wall -Wextra -pedantic -Werror -Wno-unused-parameter -Wno-unused-variable)
 target_include_directories(${PROJECT_NAME}-ut PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(${PROJECT_NAME}-ut ${PROJECT_NAME}-lib)
+
+set(GTEST_SRC_LIST
+    gtestMain.cpp
+    LcdTests.cpp
+)
+add_executable(${PROJECT_NAME}-gut ${GTEST_SRC_LIST})
+target_compile_options(${PROJECT_NAME}-gut PUBLIC -g -O0 -Wall -Wextra -pedantic -Werror -Wno-unused-parameter -Wno-unused-variable)
+target_include_directories(${PROJECT_NAME}-gut PUBLIC ${CMAKE_SOURCE_DIR})
+target_link_libraries(${PROJECT_NAME}-gut ${PROJECT_NAME}-lib ${GTEST_LIBRARIES} pthread)
