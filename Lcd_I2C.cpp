@@ -101,7 +101,7 @@ void Lcd_I2C::init() {
     lcd.setCursor(col, row);
   } 
 
-  size_t Lcd_I2C::print(String str) {return lcd.print(str);}
-  size_t Lcd_I2C::print(int i) {return lcd.print(i);}
-  size_t Lcd_I2C::print(char i) {return lcd.print(i);}
-  size_t Lcd_I2C::write(byte i) {return lcd.write(i);}
+
+inline size_t Lcd_I2C::write(uint8_t value) {
+  return lcd.write(value);
+}

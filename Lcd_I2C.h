@@ -3,8 +3,7 @@
 
 #include <Esp.h>
 #include <LiquidCrystal_I2C.h>
-
-#include "Lcd.h"
+#include "Print.h" 
 
 const byte LCD_CHAR_ALARM1      = 1;
 const byte LCD_CHAR_ALARM2      = 2;
@@ -14,7 +13,7 @@ const byte LCD_CHAR_DOWN_ARROW  = 5;
 
 
 
-class Lcd_I2C : public Lcd {
+class Lcd_I2C : public Print {
 public:
   Lcd_I2C();
   void init();
@@ -28,11 +27,7 @@ public:
   void createChar(uint8_t, uint8_t[]);
   void setCursor(uint8_t, uint8_t); 
 
-  size_t print(String str);
-  size_t print(int i);
-  size_t print(char i);
-  size_t write(byte i);
-
+  virtual size_t write(uint8_t);
 private:
   LiquidCrystal_I2C lcd;
 };
