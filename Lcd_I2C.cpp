@@ -60,7 +60,6 @@ Lcd_I2C::Lcd_I2C() : lcd(0x27,20,4) {  // set the LCD address to 0x27 for a 16 c
 void Lcd_I2C::init() {
     lcd.init();                      // initialize the lcd 
     lcd.begin(16, 2);
-    lcd.setCursor(3,0);
 
     //Create custom lcd characters
     lcd.createChar(LCD_CHAR_ALARM1, cA1);
@@ -70,7 +69,6 @@ void Lcd_I2C::init() {
     lcd.createChar(LCD_CHAR_DOWN_ARROW, cDownArrow);
 
     lcd.backlight();
-    lcd.print("Hi");
 }
 
   void Lcd_I2C::clear() {
