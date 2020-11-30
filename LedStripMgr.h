@@ -17,13 +17,15 @@ public:
   void finishSettingTargetLevel();
   void handlSwitch();
   void ledWwWrite(unsigned val);
+  void setShouldDimm(bool dimm);
   bool changeLight(unsigned long timeSinceLastLightChange);
 
 private:
-  const int Led_WW_Pin;
+  const int Led_WW_Pin = 0;
   LightProfile &lightProfile;
   unsigned ledLevel = 0;
   unsigned targetLedLevel = 0;
   int ledStepDir = 0;
+  bool shouldDimm = false;
   portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 };

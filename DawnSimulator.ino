@@ -62,9 +62,11 @@ const unsigned EEPROM_SIZE = 2;
 const unsigned EEPROM_ADDR_TARGET_LED_LEVEL = 0x0;
 
 const unsigned LIGHT_LEVEL_ALLOWED_DIFF = 10;
-const unsigned DIMMING_INTERVAL_MS = 10;
+const unsigned DISPLAY_LED_PERCENT_INTERVAL_MS = 250;
+const unsigned DISPLAY_LED_PERCENT_KEEP_MS = 10*1000;
 
 unsigned lightLevelAtBrightening = 0;
+boolean prevShouldMoveOn = false;
 
 LedStripMgr ledMgr(Led_WW_Pin);
 
@@ -134,7 +136,7 @@ Lcd_I2C lcd;
     unsigned long RunTime = 0;             // Used to track time between get temperature value
     unsigned long buttonHoldPrevTime = 0;  // Used to track button hold times 
     unsigned long AlarmRunTime = 0;
-    unsigned long ClockPercentRunTime = 0;
+    unsigned long lastClockLedPercentShownTime = 0;
     DateTime PreviousTime;            // Maybe move as static variable under displayClock function
     int PreviousLedLevelPercent = -1;
     AlarmTime PreviousAlarm;          // Maybe move as static variable under displayAlarm function
@@ -183,13 +185,17 @@ void displayClock(bool changeFlag=false) {
 
     int percent = 0;
     int ledStepDir = ledMgr.getDir();
-    if (ledStepDir != 0) {
+    unsigned long timeSinceLastLedPercentShown = millis()-lastClockLedPercentShownTime;
+    int shouldShowPercent = (ledStepDir != 0) || (timeSinceLastLedPercentShown < DISPLAY_LED_PERCENT_KEEP_MS);
+    if (shouldShowPercent) {
         // Check for LedLevel change
         percent = ledMgr.getPercent();
         if (PreviousLedLevelPercent != percent) {
           PreviousLedLevelPercent = percent;
           changeFlag = true;
         }
+    } else {
+      PreviousLedLevelPercent = -1;
     }
 
     //Update Display - Only change display if change is detected
@@ -218,12 +224,12 @@ void displayClock(bool changeFlag=false) {
         lcd.print(dow2Str(NowTime.Dow));          // Integer Day of the week
                                                   // convert to String
         lcd.print(" ");
-        if (ledStepDir == 0) {
-          printAlarmIndicators(Clock.alarmStatus(),  Clock.readAlarm(alarm1).EnabledDows, Clock.readAlarm(alarm2).EnabledDows);
-          PreviousLedLevelPercent = -1;
-        } else {
+
+        if (shouldShowPercent) {
           int targetPercent = ledMgr.getTargetPercent();
           printLedStatus(percent, targetPercent, ledStepDir);
+        } else {
+          printAlarmIndicators(Clock.alarmStatus(),  Clock.readAlarm(alarm1).EnabledDows, Clock.readAlarm(alarm2).EnabledDows);
         }
 
         PreviousTime = Clock.read();
@@ -1206,6 +1212,7 @@ void setup() {
  * ********************************************************* */
 void loop() {
     static unsigned long previousLcdMillis = 0;
+    unsigned long mills = millis();
     //if (ClockState != PrevState) { Serial.print("ClockState = ");Serial.println(ClockState); PrevState = ClockState;}
 
     switch (ClockState){
@@ -1214,8 +1221,8 @@ void loop() {
             //Serial.println("PowerLoss");
             displayClock();
             //Flash Clock
-            if ((millis()-previousLcdMillis) >= flashInterval) {
-                previousLcdMillis = millis();
+            if ((mills-previousLcdMillis) >= flashInterval) {
+                previousLcdMillis = mills;
                 if (bDisplayStatus == true){
                     lcd.noDisplay();
                 } else {
@@ -1233,7 +1240,7 @@ void loop() {
         case ShowAlarm1:
             if (ClockState != PrevState) { Serial.println("ClockState = ShowAlarm1"); PrevState = ClockState;}
             //AlarmRunTime is defined by toggleShowAlarm
-            if ((millis()-AlarmRunTime) <= Alarm_View_Pause) {
+            if ((mills-AlarmRunTime) <= Alarm_View_Pause) {
                 displayAlarm(alarm1);
             } else {
                 ClockState = ShowClock;
@@ -1243,7 +1250,7 @@ void loop() {
         case ShowAlarm2:
             if (ClockState != PrevState) { Serial.println("ClockState = ShowAlarm2"); PrevState = ClockState;}
             //AlarmRunTime is defined by toggleShowAlarm
-            if ((millis()-AlarmRunTime) <= Alarm_View_Pause) {
+            if ((mills-AlarmRunTime) <= Alarm_View_Pause) {
                 displayAlarm(alarm2);
             } else {
                 ClockState = ShowClock;
@@ -1273,31 +1280,24 @@ void loop() {
             break;
     }
 
-    if (ledMgr.getDir() != 0) {
-        unsigned long mills = millis();
-        unsigned long delta = mills-ClockPercentRunTime;
-//        Serial.print("D:");
-//        Serial.println(delta);
+    unsigned long timeSinceLastLedPercentShown = mills-lastClockLedPercentShownTime;
+    if (timeSinceLastLedPercentShown >= DISPLAY_LED_PERCENT_INTERVAL_MS) {
+      lastClockLedPercentShownTime = mills;
 
-        if (delta > 100) {
-            ClockPercentRunTime = mills;
-
-            if (ledMgr.shouldMoveOn())
-            {
-              lightLevelAtBrightening = analogRead(LightSensor_Pin);
-              displayClock(false);
-            } else {
-              displayClock(true);
-            }
+      bool shouldMoveOn = ledMgr.shouldMoveOn();
+      if (shouldMoveOn) {
+        lightLevelAtBrightening = analogRead(LightSensor_Pin);
+        displayClock(false);
+      } else {
+        if (prevShouldMoveOn) {
+          displayClock(true);
         }
-    } else {
-        if ((ledMgr.getLevel() > 0) && (lightLevelAtBrightening + LIGHT_LEVEL_ALLOWED_DIFF < analogRead(LightSensor_Pin))) {
-          if ((millis()-ClockPercentRunTime) >= DIMMING_INTERVAL_MS) {
-              ClockPercentRunTime = millis();
-              ledMgr.setDir(-1);
-          }
-        }
+        bool shouldDimm = lightLevelAtBrightening + LIGHT_LEVEL_ALLOWED_DIFF < analogRead(LightSensor_Pin);
+        ledMgr.setShouldDimm(shouldDimm);
+      }
+      prevShouldMoveOn = shouldMoveOn;
     }
+
 
     LtKey.process();
     RtKey.process();
@@ -1318,7 +1318,8 @@ void LedTaskLoop( void * parameter ) {
     while (true) {
       unsigned long mills = millis();
       unsigned long timeSinceLastLightChange = mills-lastLightChangeTime;
-      if (ledMgr.changeLight(timeSinceLastLightChange)) {
+      bool lightChanged = ledMgr.changeLight(timeSinceLastLightChange);
+      if (lightChanged) {
         lastLightChangeTime = mills;
         //log_d("LT duration: %lu", millis() - mills);
       }

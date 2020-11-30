@@ -7,6 +7,15 @@
 LightProfile alarmLightProfile(LightProfileName::Alarm);
 LightProfile switchLightProfile(LightProfileName::Switch);
 
+LedStripMgr::LedStripMgr(int pin): Led_WW_Pin(pin), lightProfile(switchLightProfile) {
+}
+
+void LedStripMgr::init() {
+  ledcSetup(LEDC_CHANNEL_0, LEDC_BASE_FREQ, LEDC_TIMER_13_BIT);
+  ledcAttachPin(Led_WW_Pin, LEDC_CHANNEL_0);
+  ledWwWrite(0);
+}
+
 bool LedStripMgr::shouldMoveOn() {
   bool retVal = false;
   portENTER_CRITICAL(&mux);
@@ -65,7 +74,7 @@ void LedStripMgr::setDirAndProfile(int dir, LightProfileName profileName) {
   portEXIT_CRITICAL(&mux);
 }
 
-int LedStripMgr::getPercent() { 
+int LedStripMgr::getPercent() {
   int retVal = false;
   portENTER_CRITICAL(&mux);
   retVal = lightProfile.toPercent(ledLevel);
@@ -73,10 +82,10 @@ int LedStripMgr::getPercent() {
   return retVal;
 }
 
-int LedStripMgr::getTargetPercent() { 
+int LedStripMgr::getTargetPercent() {
   int retVal = false;
   portENTER_CRITICAL(&mux);
-  retVal = lightProfile.toPercent(targetLedLevel); 
+  retVal = lightProfile.toPercent(targetLedLevel);
   portEXIT_CRITICAL(&mux);
   return retVal;
 }
@@ -116,35 +125,40 @@ void LedStripMgr::ledWwWrite(unsigned val) {
   static unsigned last_led_ww_value = 255;
 
   if (val != last_led_ww_value) {
-    last_led_ww_value = val;  
+    last_led_ww_value = val;
     ledcWrite(LEDC_CHANNEL_0, last_led_ww_value);
   }
   portEXIT_CRITICAL(&mux);
 }
 
+void LedStripMgr::setShouldDimm(bool dimm) {
+  portENTER_CRITICAL(&mux);
+  shouldDimm = dimm;
+  portEXIT_CRITICAL(&mux);
+}
 
-bool LedStripMgr::changeLight(unsigned long timeSinceLastLightChange ) {
+
+bool LedStripMgr::changeLight(unsigned long timeSinceLastLightChange) {
   bool retVal = false;
   portENTER_CRITICAL(&mux);
 
-  if ((ledStepDir != 0) && (timeSinceLastLightChange > lightProfile.getSampleDuration())) {
-    if (shouldMoveOn()) {
-      ledLevel += ledStepDir;
-      ledWwWrite(lightProfile[ledLevel]);
-    } else {
-      ledStepDir = 0;
+  if (timeSinceLastLightChange > lightProfile.getSampleDuration()) {
+    if (ledStepDir != 0) {
+      if (shouldMoveOn()) {
+        ledLevel += ledStepDir;
+        ledWwWrite(lightProfile[ledLevel]);
+        retVal = true;
+      } else {
+        ledStepDir = 0;
+      }
     }
-    retVal = true;
+    if (ledStepDir == 0) {
+      if ((ledLevel > 0) && shouldDimm) {
+        ledLevel--;
+        retVal = true;
+      }
+    }
   }
   portEXIT_CRITICAL(&mux);
   return retVal;
-}
-
-LedStripMgr::LedStripMgr(int pin): Led_WW_Pin(pin), lightProfile(switchLightProfile) {
-}
-
-void LedStripMgr::init() {
-  ledcSetup(LEDC_CHANNEL_0, LEDC_BASE_FREQ, LEDC_TIMER_13_BIT);
-  ledcAttachPin(Led_WW_Pin, LEDC_CHANNEL_0);
-  ledWwWrite(0);
 }
