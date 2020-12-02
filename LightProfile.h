@@ -22,13 +22,13 @@ enum class LightProfileName {
 class LightProfile {
 public:
   LightProfile(LightProfileName profileName);
-  unsigned samplesNum();
-  uint16_t operator[](size_t idx);
-  unsigned getSampleDuration();
-  int toPercent(unsigned sample);
-  unsigned sampleHigherOrEqual(unsigned value);
+  unsigned samplesNum() const;
+  uint16_t operator[](size_t idx) const;
+  unsigned getSampleDuration() const;
+  int toPercent(unsigned sample) const;
+  unsigned sampleHigherOrEqual(unsigned value) const;
 private:
-  unsigned getPeriod();
+  unsigned getPeriod() const;
   LightProfileName profile;
 };
 

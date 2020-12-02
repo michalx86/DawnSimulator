@@ -23,7 +23,7 @@ LightProfile::LightProfile(LightProfileName profileName): profile(profileName) {
   }
 }
 
-unsigned LightProfile::samplesNum() {
+unsigned LightProfile::samplesNum() const {
   switch (profile) {
     case LightProfileName::Alarm : return sizeof(alarm_arr) / sizeof(alarm_arr[0]);
     case LightProfileName::Switch : return sizeof(switch_arr) / sizeof(switch_arr[0]);
@@ -32,7 +32,7 @@ unsigned LightProfile::samplesNum() {
   return 0;
 }
 
-uint16_t LightProfile::operator[](size_t idx) {
+uint16_t LightProfile::operator[](size_t idx) const {
   //assert(idx < samplesNum());
   if (idx >= samplesNum()) {
     idx = samplesNum();
@@ -45,7 +45,7 @@ uint16_t LightProfile::operator[](size_t idx) {
   return 0;
 }
 
-unsigned LightProfile::getPeriod() {
+unsigned LightProfile::getPeriod() const {
   switch (profile) {
     case LightProfileName::Alarm : return ALARM_LIGHTENING_PERIOD_MS;
     case LightProfileName::Switch : return SWITCH_LIGHTENING_PERIOD_MS;
@@ -54,15 +54,15 @@ unsigned LightProfile::getPeriod() {
   return 0;
 }
 
-unsigned LightProfile::getSampleDuration() {
+unsigned LightProfile::getSampleDuration() const {
   return getPeriod() / samplesNum();
 }
 
-int LightProfile::toPercent(unsigned sample) {
+int LightProfile::toPercent(unsigned sample) const {
     return (*this)[sample] * 100 / DUTY_MAX;
 }
 
-unsigned LightProfile::sampleHigherOrEqual(unsigned value) {
+unsigned LightProfile::sampleHigherOrEqual(unsigned value) const {
   for (int i = 0; i < samplesNum(); i++) {
     if ((*this)[i] >= value) {
       return i;

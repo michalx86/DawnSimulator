@@ -10,22 +10,25 @@ public:
   unsigned getLevel();
   unsigned getTargetLevelValue();
   void setTargetLevelFromValue(unsigned value);
-  void setDirAndProfile(int dir, LightProfileName profileName);
   int getPercent();
   int getTargetPercent();
+  void setShouldDimm(bool dimm);
+
+  void setDirAndProfile(int dir, LightProfileName profileName);
   void beginSettingTargetLevel();
   void finishSettingTargetLevel();
   void handlSwitch();
-  void ledWwWrite(unsigned val);
-  void setShouldDimm(bool dimm);
+
   bool changeLight(unsigned long timeSinceLastLightChange);
 
 private:
-  const int Led_WW_Pin = 0;
-  LightProfile &lightProfile;
-  unsigned ledLevel = 0;
-  unsigned targetLedLevel = 0;
-  int ledStepDir = 0;
-  bool shouldDimm = false;
+  void ledWwWrite(unsigned val);
+  void setDirAndProfile(int dir, const LightProfile &profile);
+
+  const int WW_Pin = 0;
+  const LightProfile* lightProfile;
+  unsigned level = 0;
+  unsigned targetLevel = 0;
+  int stepDir = 0;
   portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 };

@@ -62,8 +62,6 @@ const unsigned EEPROM_SIZE = 2;
 const unsigned EEPROM_ADDR_TARGET_LED_LEVEL = 0x0;
 
 const unsigned LIGHT_LEVEL_ALLOWED_DIFF = 10;
-const unsigned DISPLAY_LED_PERCENT_INTERVAL_MS = 250;
-const unsigned DISPLAY_LED_PERCENT_KEEP_MS = 10*1000;
 
 unsigned lightLevelAtBrightening = 0;
 boolean prevShouldMoveOn = false;
@@ -144,6 +142,7 @@ Lcd_I2C lcd;
     byte cpIndex = 0;                 // Cursor Position Index - used for edit mode
     bool bHoldButtonFlag = false;     // used to prevent holdButton also activating clickButton
     bool bDisplayStatus = true;       // used to track the lcd display on status
+    bool shouldShowPercent = false;
 
     // For ISR
     portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
@@ -167,11 +166,12 @@ void displayClock(bool changeFlag=false) {
     // CheckFlag Section:
     // The DS3231 temperature can be read once every 64 seconds.
     // Check the temperature every 65 seconds
-    unsigned long uL = millis() - RunTime;
+    unsigned long mills = millis();
+    unsigned long uL = mills - RunTime;
     if ((uL >=65000)) {
         float PreviousTemperature = CurrentTemperature;
         CurrentTemperature = getTemperatureValue();
-        RunTime = millis();
+        RunTime = mills;
         if (CurrentTemperature != PreviousTemperature) {changeFlag = true;}
     }
 
@@ -184,9 +184,6 @@ void displayClock(bool changeFlag=false) {
     if (NowTime.Year != PreviousTime.Year) { changeFlag = true; }
 
     int percent = 0;
-    int ledStepDir = ledMgr.getDir();
-    unsigned long timeSinceLastLedPercentShown = millis()-lastClockLedPercentShownTime;
-    int shouldShowPercent = (ledStepDir != 0) || (timeSinceLastLedPercentShown < DISPLAY_LED_PERCENT_KEEP_MS);
     if (shouldShowPercent) {
         // Check for LedLevel change
         percent = ledMgr.getPercent();
@@ -195,7 +192,7 @@ void displayClock(bool changeFlag=false) {
           changeFlag = true;
         }
     } else {
-      PreviousLedLevelPercent = -1;
+        PreviousLedLevelPercent = -1;
     }
 
     //Update Display - Only change display if change is detected
@@ -226,8 +223,7 @@ void displayClock(bool changeFlag=false) {
         lcd.print(" ");
 
         if (shouldShowPercent) {
-          int targetPercent = ledMgr.getTargetPercent();
-          printLedStatus(percent, targetPercent, ledStepDir);
+          printLedStatus(percent, ledMgr.getDir());
         } else {
           printAlarmIndicators(Clock.alarmStatus(),  Clock.readAlarm(alarm1).EnabledDows, Clock.readAlarm(alarm2).EnabledDows);
         }
@@ -813,7 +809,7 @@ void ButtonClick(Button& b){
         if (b.pinValue() == Switch_Pin) {
           ledMgr.handlSwitch();
           displayClock(true);
-          Serial.print("New ledStepDir: ");
+          Serial.print("New dir: ");
           Serial.println(ledMgr.getDir());
         }
     }
@@ -1103,10 +1099,10 @@ void printAlarmIndicators(byte alarmEnabledStatus, byte enabledDows1, byte enabl
     }
 }
 
-void printLedStatus(int percent, int targetPercent, int dir) {
+void printLedStatus(int percent, int dir) {
   lcd.print("  ");
 
-  if ((dir == 0) || ((dir == 1) && (percent == targetPercent)) || ((dir == -1) && (percent == 0))) {
+  if ((dir == 0)) { 
     lcd.print(' ');
   } else if (dir == 1) {
     lcd.write(LCD_CHAR_UP_ARROW);
@@ -1280,23 +1276,16 @@ void loop() {
             break;
     }
 
-    unsigned long timeSinceLastLedPercentShown = mills-lastClockLedPercentShownTime;
-    if (timeSinceLastLedPercentShown >= DISPLAY_LED_PERCENT_INTERVAL_MS) {
-      lastClockLedPercentShownTime = mills;
-
-      bool shouldMoveOn = ledMgr.shouldMoveOn();
-      if (shouldMoveOn) {
-        lightLevelAtBrightening = analogRead(LightSensor_Pin);
-        displayClock(false);
-      } else {
-        if (prevShouldMoveOn) {
-          displayClock(true);
-        }
-        bool shouldDimm = lightLevelAtBrightening + LIGHT_LEVEL_ALLOWED_DIFF < analogRead(LightSensor_Pin);
-        ledMgr.setShouldDimm(shouldDimm);
+    bool shouldMoveOn = ledMgr.shouldMoveOn();
+    if (shouldMoveOn) {
+      shouldShowPercent = true;
+    } else {
+      if (prevShouldMoveOn) {
+        displayClock(true);
+        shouldShowPercent = false;
       }
-      prevShouldMoveOn = shouldMoveOn;
     }
+    prevShouldMoveOn = shouldMoveOn;
 
 
     LtKey.process();
