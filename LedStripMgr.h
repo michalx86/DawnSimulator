@@ -1,4 +1,4 @@
-#include "LightProfile.h"
+#include "LightState.h"
 
 class LedStripMgr {
 public:
@@ -9,9 +9,8 @@ public:
   void setDir(int dir);
   unsigned getLevel();
   unsigned getTargetLevelValue();
-  void setTargetLevelFromValue(unsigned value);
+  void setTargetLevelFromValue(uint16_t value);
   int getPercent();
-  int getTargetPercent();
   void setShouldDimm(bool dimm);
 
   void setDirAndProfile(int dir, LightProfileName profileName);
@@ -23,12 +22,11 @@ public:
 
 private:
   void ledWwWrite(unsigned val);
-  void setDirAndProfile(int dir, const LightProfile &profile);
+  void setDirAndLightState(int dir, LightState &profile);
 
   const int WW_Pin = 0;
-  const LightProfile* lightProfile;
+  LightState* lightState;
   unsigned level = 0;
-  unsigned targetLevel = 0;
   int stepDir = 0;
   portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 };

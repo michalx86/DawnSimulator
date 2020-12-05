@@ -1283,6 +1283,7 @@ void loop() {
       if (prevShouldMoveOn) {
         displayClock(true);
         shouldShowPercent = false;
+        log_d("Target Level reached at %d%%", ledMgr.getPercent());
       }
     }
     prevShouldMoveOn = shouldMoveOn;

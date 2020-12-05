@@ -6,8 +6,10 @@
 
 const LightProfile alarmLightProfile(LightProfileName::Alarm);
 const LightProfile switchLightProfile(LightProfileName::Switch);
+LightState alarmLightState(alarmLightProfile);
+LightState switchLightState(switchLightProfile);
 
-LedStripMgr::LedStripMgr(int pin): WW_Pin(pin), lightProfile(&switchLightProfile) {
+LedStripMgr::LedStripMgr(int pin): WW_Pin(pin), lightState(&alarmLightState) {
 }
 
 void LedStripMgr::init() {
@@ -19,7 +21,7 @@ void LedStripMgr::init() {
 bool LedStripMgr::shouldMoveOn() {
   bool retVal = false;
   portENTER_CRITICAL(&mux);
-  retVal = (((stepDir ==  1) && (level < targetLevel)) ||
+  retVal = (((stepDir ==  1) && (level < lightState->getTargetLevel())) ||
           ((stepDir == -1) && (level > 0)));
   portEXIT_CRITICAL(&mux);
   return retVal;
@@ -50,14 +52,17 @@ unsigned LedStripMgr::getLevel() {
 unsigned LedStripMgr::getTargetLevelValue() {
   unsigned retVal = 0;
   portENTER_CRITICAL(&mux);
-  retVal = (*lightProfile)[targetLevel];
+  retVal = lightState->getTargetLevelValue();
   portEXIT_CRITICAL(&mux);
   return retVal;
 }
 
-void LedStripMgr::setTargetLevelFromValue(unsigned value) {
+void LedStripMgr::setTargetLevelFromValue(uint16_t value) {
   portENTER_CRITICAL(&mux);
-  targetLevel = lightProfile->sampleHigherOrEqual(value);
+  alarmLightState.setTargetLevelFromValue(value);
+  switchLightState.setTargetLevelFromValue(value);
+
+  unsigned targetLevel = lightState->getTargetLevel();
   Serial.print("Target LED level: ");
   Serial.println(targetLevel);
   portEXIT_CRITICAL(&mux);
@@ -66,49 +71,42 @@ void LedStripMgr::setTargetLevelFromValue(unsigned value) {
 int LedStripMgr::getPercent() {
   int retVal = 0;
   portENTER_CRITICAL(&mux);
-  retVal = lightProfile->toPercent(level);
-  portEXIT_CRITICAL(&mux);
-  return retVal;
-}
-
-int LedStripMgr::getTargetPercent() {
-  int retVal = 0;
-  portENTER_CRITICAL(&mux);
-  retVal = lightProfile->toPercent(targetLevel);
+  retVal = lightState->toPercent(level);
   portEXIT_CRITICAL(&mux);
   return retVal;
 }
 
 void LedStripMgr::setDirAndProfile(int dir, LightProfileName profileName) {
-  const LightProfile* profile = nullptr;
-   switch (profileName) {
-    case LightProfileName::Alarm  : profile = &alarmLightProfile; break;
-    case LightProfileName::Switch : profile = &switchLightProfile; break;
+  switch (profileName) {
+    case LightProfileName::Alarm  : setDirAndLightState(dir, alarmLightState); break;
+    case LightProfileName::Switch : setDirAndLightState(dir, switchLightState); break;
     default : break;
   }
-  setDirAndProfile(dir, *profile);
 }
 
 void LedStripMgr::beginSettingTargetLevel() {
   portENTER_CRITICAL(&mux);
   stepDir = 1;
   level = 0;
-  lightProfile = &switchLightProfile;
-  targetLevel = lightProfile->samplesNum() - 1;
+  lightState = &switchLightState;
+  lightState->resetTargetLevel();
   portEXIT_CRITICAL(&mux);
 }
 
 void LedStripMgr::finishSettingTargetLevel() {
   portENTER_CRITICAL(&mux);
   stepDir = 0;
-  targetLevel = level;
+  lightState->setTargetLevel(level);
+  // TODO: When setting target values is separated, this should be removed
+  unsigned value = (*lightState)[level];
+  setTargetLevelFromValue(value);
   portEXIT_CRITICAL(&mux);
 }
 
 void LedStripMgr::handlSwitch() {
   portENTER_CRITICAL(&mux);
   int newDir = (stepDir != 0)? -stepDir : (level == 0)? 1 : -1;
-  setDirAndProfile(newDir, switchLightProfile);
+  setDirAndLightState(newDir, switchLightState);
   portEXIT_CRITICAL(&mux);
 }
 
@@ -116,11 +114,11 @@ bool LedStripMgr::changeLight(unsigned long timeSinceLastLightChange) {
   bool retVal = false;
   portENTER_CRITICAL(&mux);
 
-  if (timeSinceLastLightChange > lightProfile->getSampleDuration()) {
+  if (timeSinceLastLightChange > lightState->getSampleDuration()) {
     if (stepDir != 0) {
       if (shouldMoveOn()) {
         level += stepDir;
-        ledWwWrite((*lightProfile)[level]);
+        ledWwWrite((*lightState)[level]);
         retVal = true;
       }
       if (shouldMoveOn() == false) {
@@ -145,13 +143,12 @@ void LedStripMgr::ledWwWrite(unsigned val) {
   }
 }
 
-void LedStripMgr::setDirAndProfile(int dir, const LightProfile &profile) {
+void LedStripMgr::setDirAndLightState(int dir, LightState &state) {
   portENTER_CRITICAL(&mux);
   stepDir = dir;
-  if (lightProfile != &profile) {
-    level       = profile.sampleHigherOrEqual((*lightProfile)[level]);
-    targetLevel = profile.sampleHigherOrEqual((*lightProfile)[targetLevel]);
-    lightProfile = &profile;
+  if (lightState != &state) {
+    level       = state.sampleHigherOrEqual((*lightState)[level]);
+    lightState = &state;
   }
   portEXIT_CRITICAL(&mux);
 }
