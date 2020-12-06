@@ -1,4 +1,4 @@
-#include <Esp.h>
+#include <Esp.h>+
 #include "LedStripMgr.h"
 
 // use first channel of 16 channels (started from zero)
@@ -9,13 +9,15 @@ const LightProfile switchLightProfile(LightProfileName::Switch);
 LightState alarmLightState(alarmLightProfile);
 LightState switchLightState(switchLightProfile);
 
-LedStripMgr::LedStripMgr(int pin): WW_Pin(pin), lightState(&alarmLightState) {
+LedStripMgr::LedStripMgr(int r_pin, int g_pin, int b_pin, int ww_pin, int cw_pin): LED_Pins{r_pin, g_pin, b_pin, ww_pin,cw_pin}, lightState(&alarmLightState) {
 }
 
 void LedStripMgr::init() {
-  ledcSetup(LEDC_CHANNEL_0, LEDC_BASE_FREQ, LEDC_TIMER_13_BIT);
-  ledcAttachPin(WW_Pin, LEDC_CHANNEL_0);
-  ledWwWrite(0);
+  for (int i = 0; i < LED_LAST; i++) {
+    ledcSetup(LEDC_CHANNEL_0 + i, LEDC_BASE_FREQ, LEDC_TIMER_13_BIT);
+    ledcAttachPin(LED_Pins[LED_R + i], LEDC_CHANNEL_0 + i);
+    ledWrite((LED_COLOR)i, 0);
+  }
 }
 
 bool LedStripMgr::shouldMoveOn() {
@@ -118,7 +120,7 @@ bool LedStripMgr::changeLight(unsigned long timeSinceLastLightChange) {
     if (stepDir != 0) {
       if (shouldMoveOn()) {
         level += stepDir;
-        ledWwWrite((*lightState)[level]);
+        ledWrite(LED_COLOR(4), (*lightState)[level]);
         retVal = true;
       }
       if (shouldMoveOn() == false) {
@@ -134,12 +136,12 @@ bool LedStripMgr::changeLight(unsigned long timeSinceLastLightChange) {
 /*###############################################################
   # Private
   ###############################################################*/
-void LedStripMgr::ledWwWrite(unsigned val) {
+void LedStripMgr::ledWrite(LED_COLOR color, unsigned val) {
   static unsigned last_led_ww_value = 255;
 
   if (val != last_led_ww_value) {
     last_led_ww_value = val;
-    ledcWrite(LEDC_CHANNEL_0, last_led_ww_value);
+    ledcWrite(LEDC_CHANNEL_0 + color, last_led_ww_value);
   }
 }
 

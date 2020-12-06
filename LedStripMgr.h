@@ -1,8 +1,14 @@
 #include "LightState.h"
 
+enum LED_COLOR {
+  LED_R = 0, LED_G, LED_B, LED_WW, LED_CW, LED_LAST
+};
+
+
+
 class LedStripMgr {
 public:
-  LedStripMgr(int pin);
+  LedStripMgr(int r_pin, int g_pin, int b_pin, int ww_pin, int cw_pin);
   void init();
   bool shouldMoveOn();
   int getDir();
@@ -21,10 +27,10 @@ public:
   bool changeLight(unsigned long timeSinceLastLightChange);
 
 private:
-  void ledWwWrite(unsigned val);
+  void ledWrite(LED_COLOR color, unsigned val);
   void setDirAndLightState(int dir, LightState &profile);
 
-  const int WW_Pin = 0;
+  int LED_Pins[LED_LAST];
   LightState* lightState;
   unsigned level = 0;
   int stepDir = 0;

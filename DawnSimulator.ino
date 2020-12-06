@@ -50,7 +50,11 @@
 
 
 const int LightSensor_Pin = 04;
+const int Led_R_Pin  = 12;      // PWM
+const int Led_G_Pin  = 15;      // PWM
+const int Led_B_Pin  = 33;      // PWM
 const int Led_WW_Pin = 5;       // PWM
+const int Led_CW_Pin = 13;      // PWM
 const int Switch_Pin = 17;
 const int Mode_Pin = 16;
 const int Lt_Pin = 27;
@@ -66,7 +70,7 @@ const unsigned LIGHT_LEVEL_ALLOWED_DIFF = 10;
 unsigned lightLevelAtBrightening = 0;
 boolean prevShouldMoveOn = false;
 
-LedStripMgr ledMgr(Led_WW_Pin);
+LedStripMgr ledMgr(Led_R_Pin, Led_G_Pin, Led_B_Pin, Led_WW_Pin, Led_CW_Pin);
 
 /* ***********************************************************
  *                      Global Constants                     *
