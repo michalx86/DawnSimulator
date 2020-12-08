@@ -14,15 +14,15 @@ public:
   int getDir();
   void setDir(int dir);
   unsigned getLevel();
-  unsigned getTargetLevelValue();
-  void setTargetLevelFromValue(uint16_t value);
+  unsigned getTargetValue();
+  void setTargetValue(uint16_t value);
   int getPercent();
   void setShouldDimm(bool dimm);
 
   void setDirAndProfile(int dir, LightProfileName profileName);
-  void beginSettingTargetLevel();
-  void finishSettingTargetLevel();
-  void handlSwitch();
+  void beginSettingTargetValue();
+  void finishSettingTargetValue();
+  void handleSwitch();
 
   bool changeLight(unsigned long timeSinceLastLightChange);
 

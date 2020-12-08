@@ -23,7 +23,7 @@ void LedStripMgr::init() {
 bool LedStripMgr::shouldMoveOn() {
   bool retVal = false;
   portENTER_CRITICAL(&mux);
-  retVal = (((stepDir ==  1) && (level < lightState->getTargetLevel())) ||
+  retVal = (((stepDir ==  1) && (level < lightState->lastSampleNum())) ||
           ((stepDir == -1) && (level > 0)));
   portEXIT_CRITICAL(&mux);
   return retVal;
@@ -51,22 +51,18 @@ unsigned LedStripMgr::getLevel() {
   return retVal;
 }
 
-unsigned LedStripMgr::getTargetLevelValue() {
+unsigned LedStripMgr::getTargetValue() {
   unsigned retVal = 0;
   portENTER_CRITICAL(&mux);
-  retVal = lightState->getTargetLevelValue();
+  retVal = lightState->getTargetValue();
   portEXIT_CRITICAL(&mux);
   return retVal;
 }
 
-void LedStripMgr::setTargetLevelFromValue(uint16_t value) {
+void LedStripMgr::setTargetValue(uint16_t value) {
   portENTER_CRITICAL(&mux);
-  alarmLightState.setTargetLevelFromValue(value);
-  switchLightState.setTargetLevelFromValue(value);
-
-  unsigned targetLevel = lightState->getTargetLevel();
-  Serial.print("Target LED level: ");
-  Serial.println(targetLevel);
+  alarmLightState.setTargetValue(value);
+  switchLightState.setTargetValue(value);
   portEXIT_CRITICAL(&mux);
 }
 
@@ -86,26 +82,40 @@ void LedStripMgr::setDirAndProfile(int dir, LightProfileName profileName) {
   }
 }
 
-void LedStripMgr::beginSettingTargetLevel() {
+void LedStripMgr::beginSettingTargetValue() {
   portENTER_CRITICAL(&mux);
   stepDir = 1;
   level = 0;
   lightState = &switchLightState;
-  lightState->resetTargetLevel();
+  lightState->resetTargetValue();
+  lightState->setCurrentValue(0);
+  lightState->setSourceValue(0);
   portEXIT_CRITICAL(&mux);
 }
 
-void LedStripMgr::finishSettingTargetLevel() {
+void LedStripMgr::finishSettingTargetValue() {
   portENTER_CRITICAL(&mux);
   stepDir = 0;
-  lightState->setTargetLevel(level);
   // TODO: When setting target values is separated, this should be removed
   unsigned value = (*lightState)[level];
-  setTargetLevelFromValue(value);
+  setTargetValue(value);
+  level = lightState->lastSampleNum();
   portEXIT_CRITICAL(&mux);
 }
+/*
+int cnt = 0;
+void LedStripMgr::handleSwitch() {
+  portENTER_CRITICAL(&mux);
+  int newDir = (stepDir != 0)? -stepDir : (level == 0)? 1 : -1;
+  if (cnt++ % 2 == 0) {
+    setDirAndLightState(newDir, switchLightState);
+  } else {
+    setDirAndLightState(newDir, alarmLightState);
+  }
+  portEXIT_CRITICAL(&mux);
+}*/
 
-void LedStripMgr::handlSwitch() {
+void LedStripMgr::handleSwitch() {
   portENTER_CRITICAL(&mux);
   int newDir = (stepDir != 0)? -stepDir : (level == 0)? 1 : -1;
   setDirAndLightState(newDir, switchLightState);
@@ -120,11 +130,23 @@ bool LedStripMgr::changeLight(unsigned long timeSinceLastLightChange) {
     if (stepDir != 0) {
       if (shouldMoveOn()) {
         level += stepDir;
-        ledWrite(LED_COLOR(4), (*lightState)[level]);
+        int profile_val = (*lightState)[level];
+        int source_val = lightState->getSourceValue();
+        uint16_t value = 0;
+
+        if (stepDir > 0) {
+          int target_val = lightState->getTargetValue();
+          value = profile_val * (target_val - source_val) / DUTY_MAX + source_val;
+        } else {
+          value = profile_val * source_val / DUTY_MAX;
+        }
+        lightState->setCurrentValue(value);
+
+        ledWrite(LED_COLOR(4), value);
         retVal = true;
       }
       if (shouldMoveOn() == false) {
-        log_d("l: %u, d: %d",level, stepDir);
+        log_d("level: %u, stepDir: %d, currentValue: %u",level, stepDir, lightState->getCurrentValue());
         stepDir = 0;
       }
     }
@@ -149,8 +171,17 @@ void LedStripMgr::setDirAndLightState(int dir, LightState &state) {
   portENTER_CRITICAL(&mux);
   stepDir = dir;
   if (lightState != &state) {
-    level       = state.sampleHigherOrEqual((*lightState)[level]);
+    auto value = lightState->getCurrentValue();
+    state.setSourceValue(value);
+    log_d("level: %u, stepDir: %d, sourceValue: %u",level, stepDir, value);
+
     lightState = &state;
+    lightState->setCurrentValue(value);
+    level       = (stepDir > 0)? 0: state.lastSampleNum();
+    log_d("level: %u",level);
+  } else {
+    auto value = (stepDir > 0)? 0 : state.getTargetValue();
+    state.setSourceValue(value);
   }
   portEXIT_CRITICAL(&mux);
 }

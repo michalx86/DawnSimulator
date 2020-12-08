@@ -32,6 +32,10 @@ unsigned LightProfile::samplesNum() const {
   return 0;
 }
 
+unsigned LightProfile::lastSampleNum() const {
+  return samplesNum() - 1;
+}
+
 uint16_t LightProfile::operator[](size_t idx) const {
   //assert(idx < samplesNum());
   if (idx >= samplesNum()) {
@@ -60,13 +64,4 @@ unsigned LightProfile::getSampleDuration() const {
 
 int LightProfile::toPercent(unsigned sample) const {
     return (*this)[sample] * 100 / DUTY_MAX;
-}
-
-unsigned LightProfile::sampleHigherOrEqual(unsigned value) const {
-  for (int i = 0; i < samplesNum(); i++) {
-    if ((*this)[i] >= value) {
-      return i;
-    }
-  }
-  return 0;
 }

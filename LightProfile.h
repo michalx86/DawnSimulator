@@ -23,10 +23,10 @@ class LightProfile {
 public:
   LightProfile(LightProfileName profileName);
   unsigned samplesNum() const;
+  unsigned lastSampleNum() const;
   uint16_t operator[](size_t idx) const;
   unsigned getSampleDuration() const;
   int toPercent(unsigned sample) const;
-  unsigned sampleHigherOrEqual(unsigned value) const;
 private:
   unsigned getPeriod() const;
   LightProfileName profile;

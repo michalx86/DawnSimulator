@@ -667,8 +667,8 @@ void ButtonClick(Button& b){
     if (bHoldButtonFlag == true) {
         // After a hold button is released, a button click is also registered
         if (b.pinValue() == Switch_Pin) {
-            ledMgr.finishSettingTargetLevel();
-            uint16_t targetLedValue = ledMgr.getTargetLevelValue();
+            ledMgr.finishSettingTargetValue();
+            uint16_t targetLedValue = ledMgr.getTargetValue();
             EEPROM.write(EEPROM_ADDR_TARGET_LED_LEVEL,targetLedValue);
             EEPROM.write(EEPROM_ADDR_TARGET_LED_LEVEL + 1, targetLedValue >> 8);
             EEPROM.commit();
@@ -811,7 +811,7 @@ void ButtonClick(Button& b){
                 break;
         }
         if (b.pinValue() == Switch_Pin) {
-          ledMgr.handlSwitch();
+          ledMgr.handleSwitch();
           displayClock(true);
           Serial.print("New dir: ");
           Serial.println(ledMgr.getDir());
@@ -975,8 +975,8 @@ void ButtonHold(Button& b){
         }
 
         if (b.pinValue() == Switch_Pin) {
-            ledMgr.beginSettingTargetLevel();
-            Serial.println("Setting target alarm LED light level started...");
+            ledMgr.beginSettingTargetValue();
+            Serial.println("Setting target alarm LED light value started...");
             bHoldButtonFlag = true;
         }
     }
@@ -1160,8 +1160,8 @@ void setup() {
     byte targetLedValueHigh = EEPROM.read(EEPROM_ADDR_TARGET_LED_LEVEL + 1);
     uint16_t targetLedValue = ((uint16_t)targetLedValueHigh << 8) + (uint16_t)targetLedValueLow;
     Serial.print("Target Alarm LED value: ");
-    Serial.print(targetLedValue);
-    ledMgr.setTargetLevelFromValue(targetLedValue);
+    Serial.println(targetLedValue);
+    ledMgr.setTargetValue(targetLedValue);
 
     /*          LCD Stuff           */
     lcd.init();                      // initialize the lcd 

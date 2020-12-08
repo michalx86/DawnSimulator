@@ -1,11 +1,15 @@
 #include "LightState.h"
 
 LightState::LightState(const LightProfile& _profile): profile(_profile) {
-  resetTargetLevel();
+  resetTargetValue();
 }
 
 unsigned LightState::samplesNum() const {
   return profile.samplesNum();
+}
+
+unsigned LightState::lastSampleNum() const {
+  return profile.lastSampleNum();
 }
 
 uint16_t LightState::operator[](size_t idx) const {
@@ -20,26 +24,30 @@ int LightState::toPercent(unsigned level) const {
   return profile.toPercent(level);
 }
 
-unsigned LightState::sampleHigherOrEqual(unsigned value) const {
-  return profile.sampleHigherOrEqual(value);
+uint16_t LightState::getSourceValue() {
+  return sourceValue;
 }
 
-unsigned LightState::getTargetLevel() const {
-  return targetLevel;
+void LightState::setSourceValue(uint16_t value) {
+  sourceValue = value;
 }
 
-void LightState::setTargetLevel(unsigned level) {
-  targetLevel = level;
+uint16_t LightState::getCurrentValue() {
+  return currentValue;
 }
 
-uint16_t LightState::getTargetLevelValue() {
-  return profile[targetLevel];
+void LightState::setCurrentValue(uint16_t value) {
+  currentValue = value;
 }
 
-void LightState::setTargetLevelFromValue(uint16_t value) {
-  setTargetLevel(sampleHigherOrEqual(value));
+uint16_t LightState::getTargetValue() {
+  return targetValue;
 }
 
-void LightState::resetTargetLevel() {
-  targetLevel = samplesNum() - 1;
+void LightState::setTargetValue(uint16_t value) {
+  targetValue = value;
+}
+
+void LightState::resetTargetValue() {
+  targetValue = DUTY_MAX;
 }
