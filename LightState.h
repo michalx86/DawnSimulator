@@ -7,7 +7,7 @@
 
 class LightState {
 public:
-  LightState(const LightProfile& _profile);
+  LightState(const LightProfile& _profile, unsigned _period);
   unsigned samplesNum() const;
   unsigned lastSampleNum() const;
   uint16_t operator[](size_t idx) const;
@@ -21,10 +21,11 @@ public:
   void setTargetValue(uint16_t value);
   void resetTargetValue();
 private:
+  const LightProfile& profile;
+  unsigned period = 0;
   uint16_t sourceValue = 0;
   uint16_t currentValue = 0;
   uint16_t targetValue = 0;
-  const LightProfile& profile;
 };
 
 #endif // LightState_h

@@ -36,38 +36,6 @@ SCENARIO("check LightProfile")
                 CHECK(value == SAMPLE_LAST_VALUE);
             }
         }
-        WHEN("Percent of Sample 0 is required")
-        {
-            auto value = lp.toPercent(0);
-            THEN("It should be 0")
-            {
-                CHECK(value == 0);
-            }
-        }
-        WHEN("Percent of Sample ALARM_SAMPLE_LAST is required")
-        {
-            auto value = lp.toPercent(ALARM_SAMPLE_LAST);
-            THEN("It should be 0")
-            {
-                CHECK(value == 100);
-            }
-        }
-        WHEN("Sample of value higher or equal to 0 is required")
-        {
-            auto value = lp.sampleHigherOrEqual(0);
-            THEN("It should be 0")
-            {
-                CHECK(value == 0);
-            }
-        }
-        WHEN("Sample of value higher or equal to SAMPLE_LAST_VALUE is required")
-        {
-            auto value = lp.sampleHigherOrEqual(SAMPLE_LAST_VALUE);
-            THEN("It should be ALARM_SAMPLE_LAST")
-            {
-                CHECK(value == ALARM_SAMPLE_LAST);
-            }
-        }
     }
     GIVEN("Prime LightProfile Switch")
     {

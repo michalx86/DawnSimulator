@@ -1,6 +1,6 @@
 #include "LightState.h"
 
-LightState::LightState(const LightProfile& _profile): profile(_profile) {
+LightState::LightState(const LightProfile& _profile, unsigned _period): profile(_profile), period(_period) {
   resetTargetValue();
 }
 
@@ -17,7 +17,7 @@ uint16_t LightState::operator[](size_t idx) const {
 }
 
 unsigned LightState::getSampleDuration() const {
-  return profile.getSampleDuration();
+  return period / samplesNum();
 }
 
 int LightState::getPercent() const {

@@ -3,9 +3,6 @@
 #include "LightProfile.h"
 
 
-const unsigned ALARM_LIGHTENING_PERIOD_MS = 20 * 60 * 1000;
-const unsigned SWITCH_LIGHTENING_PERIOD_MS = 2000;
-
 static uint16_t alarm_arr[10] = {};
 static uint16_t switch_arr[120] = {};
 
@@ -47,17 +44,4 @@ uint16_t LightProfile::operator[](size_t idx) const {
     default : break;
   }
   return 0;
-}
-
-unsigned LightProfile::getPeriod() const {
-  switch (profile) {
-    case LightProfileName::Alarm : return ALARM_LIGHTENING_PERIOD_MS;
-    case LightProfileName::Switch : return SWITCH_LIGHTENING_PERIOD_MS;
-    default : break;
-  }
-  return 0;
-}
-
-unsigned LightProfile::getSampleDuration() const {
-  return getPeriod() / samplesNum();
 }

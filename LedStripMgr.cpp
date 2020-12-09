@@ -1,13 +1,21 @@
 #include <Esp.h>+
 #include "LedStripMgr.h"
 
+const unsigned ALARM_LIGHTENING_PERIOD_MS = 20 * 60 * 1000;
+const unsigned SWITCH_LIGHTENING_PERIOD_MS = 2000;
+
+// use 500 Hz as a LEDC base frequency
+#define LEDC_BASE_FREQ     500
+
+
+
 // use first channel of 16 channels (started from zero)
 #define LEDC_CHANNEL_0     0
 
 const LightProfile alarmLightProfile(LightProfileName::Alarm);
 const LightProfile switchLightProfile(LightProfileName::Switch);
-LightState alarmLightState(alarmLightProfile);
-LightState switchLightState(switchLightProfile);
+LightState alarmLightState(alarmLightProfile, ALARM_LIGHTENING_PERIOD_MS);
+LightState switchLightState(switchLightProfile, SWITCH_LIGHTENING_PERIOD_MS);
 
 LedStripMgr::LedStripMgr(int r_pin, int g_pin, int b_pin, int ww_pin, int cw_pin): LED_Pins{r_pin, g_pin, b_pin, ww_pin,cw_pin}, lightState(&alarmLightState) {
 }
