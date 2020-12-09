@@ -26,7 +26,6 @@ public:
   unsigned lastSampleNum() const;
   uint16_t operator[](size_t idx) const;
   unsigned getSampleDuration() const;
-  int toPercent(unsigned sample) const;
 private:
   unsigned getPeriod() const;
   LightProfileName profile;

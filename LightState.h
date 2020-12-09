@@ -12,7 +12,7 @@ public:
   unsigned lastSampleNum() const;
   uint16_t operator[](size_t idx) const;
   unsigned getSampleDuration() const;
-  int toPercent(unsigned sample) const;
+  int getPercent() const;
   uint16_t getSourceValue();
   void setSourceValue(uint16_t value);
   uint16_t getCurrentValue();

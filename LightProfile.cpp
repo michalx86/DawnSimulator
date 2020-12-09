@@ -61,7 +61,3 @@ unsigned LightProfile::getPeriod() const {
 unsigned LightProfile::getSampleDuration() const {
   return getPeriod() / samplesNum();
 }
-
-int LightProfile::toPercent(unsigned sample) const {
-    return (*this)[sample] * 100 / DUTY_MAX;
-}

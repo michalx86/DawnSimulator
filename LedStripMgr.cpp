@@ -69,7 +69,7 @@ void LedStripMgr::setTargetValue(uint16_t value) {
 int LedStripMgr::getPercent() {
   int retVal = 0;
   portENTER_CRITICAL(&mux);
-  retVal = lightState->toPercent(level);
+  retVal = lightState->getPercent();
   portEXIT_CRITICAL(&mux);
   return retVal;
 }

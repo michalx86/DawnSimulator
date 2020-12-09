@@ -20,8 +20,8 @@ unsigned LightState::getSampleDuration() const {
   return profile.getSampleDuration();
 }
 
-int LightState::toPercent(unsigned level) const {
-  return profile.toPercent(level);
+int LightState::getPercent() const {
+  return currentValue * 100 / DUTY_MAX;
 }
 
 uint16_t LightState::getSourceValue() {
