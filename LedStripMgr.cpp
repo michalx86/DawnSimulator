@@ -14,10 +14,10 @@ const unsigned SWITCH_LIGHTENING_PERIOD_MS = 2000;
 
 const LightProfile alarmLightProfile(LightProfileName::Alarm);
 const LightProfile switchLightProfile(LightProfileName::Switch);
-LightState alarmLightState(alarmLightProfile, ALARM_LIGHTENING_PERIOD_MS);
-LightState switchLightState(switchLightProfile, SWITCH_LIGHTENING_PERIOD_MS);
+LightComposite alarmLightComposite(alarmLightProfile, ALARM_LIGHTENING_PERIOD_MS);
+LightComposite switchLightComposite(switchLightProfile, SWITCH_LIGHTENING_PERIOD_MS);
 
-LedStripMgr::LedStripMgr(int r_pin, int g_pin, int b_pin, int ww_pin, int cw_pin): LED_Pins{r_pin, g_pin, b_pin, ww_pin,cw_pin}, lightState(&alarmLightState) {
+LedStripMgr::LedStripMgr(int r_pin, int g_pin, int b_pin, int ww_pin, int cw_pin): LED_Pins{r_pin, g_pin, b_pin, ww_pin,cw_pin}, lightComposite(&alarmLightComposite) {
 }
 
 void LedStripMgr::init() {
@@ -31,7 +31,7 @@ void LedStripMgr::init() {
 bool LedStripMgr::shouldMoveOn() {
   bool retVal = false;
   portENTER_CRITICAL(&mux);
-  retVal = (((stepDir ==  1) && (level < lightState->lastSampleNum())) ||
+  retVal = (((stepDir ==  1) && (level < lightComposite->lastSampleNum())) ||
           ((stepDir == -1) && (level > 0)));
   portEXIT_CRITICAL(&mux);
   return retVal;
@@ -62,30 +62,30 @@ unsigned LedStripMgr::getLevel() {
 unsigned LedStripMgr::getTargetValue() {
   unsigned retVal = 0;
   portENTER_CRITICAL(&mux);
-  retVal = lightState->getTargetValue();
+  retVal = lightComposite->getTargetValue();
   portEXIT_CRITICAL(&mux);
   return retVal;
 }
 
 void LedStripMgr::setTargetValue(uint16_t value) {
   portENTER_CRITICAL(&mux);
-  alarmLightState.setTargetValue(value);
-  switchLightState.setTargetValue(value);
+  alarmLightComposite.setTargetValue(value);
+  switchLightComposite.setTargetValue(value);
   portEXIT_CRITICAL(&mux);
 }
 
 int LedStripMgr::getPercent() {
   int retVal = 0;
   portENTER_CRITICAL(&mux);
-  retVal = lightState->getPercent();
+  retVal = lightComposite->getPercent();
   portEXIT_CRITICAL(&mux);
   return retVal;
 }
 
 void LedStripMgr::setDirAndProfile(int dir, LightProfileName profileName) {
   switch (profileName) {
-    case LightProfileName::Alarm  : setDirAndLightState(dir, alarmLightState); break;
-    case LightProfileName::Switch : setDirAndLightState(dir, switchLightState); break;
+    case LightProfileName::Alarm  : setDirAndLightComposite(dir, alarmLightComposite); break;
+    case LightProfileName::Switch : setDirAndLightComposite(dir, switchLightComposite); break;
     default : break;
   }
 }
@@ -94,10 +94,10 @@ void LedStripMgr::beginSettingTargetValue() {
   portENTER_CRITICAL(&mux);
   stepDir = 1;
   level = 0;
-  lightState = &switchLightState;
-  lightState->resetTargetValue();
-  lightState->setCurrentValue(0);
-  lightState->setSourceValue(0);
+  lightComposite = &switchLightComposite;
+  lightComposite->resetTargetValue();
+  lightComposite->setCurrentValue(0);
+  lightComposite->setSourceValue(0);
   portEXIT_CRITICAL(&mux);
 }
 
@@ -105,9 +105,9 @@ void LedStripMgr::finishSettingTargetValue() {
   portENTER_CRITICAL(&mux);
   stepDir = 0;
   // TODO: When setting target values is separated, this should be removed
-  unsigned value = (*lightState)[level];
+  unsigned value = (*lightComposite)[level];
   setTargetValue(value);
-  level = lightState->lastSampleNum();
+  level = lightComposite->lastSampleNum();
   portEXIT_CRITICAL(&mux);
 }
 /*
@@ -116,9 +116,9 @@ void LedStripMgr::handleSwitch() {
   portENTER_CRITICAL(&mux);
   int newDir = (stepDir != 0)? -stepDir : (level == 0)? 1 : -1;
   if (cnt++ % 2 == 0) {
-    setDirAndLightState(newDir, switchLightState);
+    setDirAndLightComposite(newDir, switchLightComposite);
   } else {
-    setDirAndLightState(newDir, alarmLightState);
+    setDirAndLightComposite(newDir, alarmLightComposite);
   }
   portEXIT_CRITICAL(&mux);
 }*/
@@ -126,7 +126,7 @@ void LedStripMgr::handleSwitch() {
 void LedStripMgr::handleSwitch() {
   portENTER_CRITICAL(&mux);
   int newDir = (stepDir != 0)? -stepDir : (level == 0)? 1 : -1;
-  setDirAndLightState(newDir, switchLightState);
+  setDirAndLightComposite(newDir, switchLightComposite);
   portEXIT_CRITICAL(&mux);
 }
 
@@ -134,27 +134,27 @@ bool LedStripMgr::changeLight(unsigned long timeSinceLastLightChange) {
   bool retVal = false;
   portENTER_CRITICAL(&mux);
 
-  if (timeSinceLastLightChange > lightState->getSampleDuration()) {
+  if (timeSinceLastLightChange > lightComposite->getSampleDuration()) {
     if (stepDir != 0) {
       if (shouldMoveOn()) {
         level += stepDir;
-        int profile_val = (*lightState)[level];
-        int source_val = lightState->getSourceValue();
+        int profile_val = (*lightComposite)[level];
+        int source_val = lightComposite->getSourceValue();
         uint16_t value = 0;
 
         if (stepDir > 0) {
-          int target_val = lightState->getTargetValue();
+          int target_val = lightComposite->getTargetValue();
           value = profile_val * (target_val - source_val) / DUTY_MAX + source_val;
         } else {
           value = profile_val * source_val / DUTY_MAX;
         }
-        lightState->setCurrentValue(value);
+        lightComposite->setCurrentValue(value);
 
         ledWrite(LED_COLOR(4), value);
         retVal = true;
       }
       if (shouldMoveOn() == false) {
-        log_d("level: %u, stepDir: %d, currentValue: %u",level, stepDir, lightState->getCurrentValue());
+        log_d("level: %u, stepDir: %d, currentValue: %u",level, stepDir, lightComposite->getCurrentValue());
         stepDir = 0;
       }
     }
@@ -175,21 +175,21 @@ void LedStripMgr::ledWrite(LED_COLOR color, unsigned val) {
   }
 }
 
-void LedStripMgr::setDirAndLightState(int dir, LightState &state) {
+void LedStripMgr::setDirAndLightComposite(int dir, LightComposite &composite) {
   portENTER_CRITICAL(&mux);
   stepDir = dir;
-  if (lightState != &state) {
-    auto value = lightState->getCurrentValue();
-    state.setSourceValue(value);
+  if (lightComposite != &composite) {
+    auto value = lightComposite->getCurrentValue();
+    composite.setSourceValue(value);
     log_d("level: %u, stepDir: %d, sourceValue: %u",level, stepDir, value);
 
-    lightState = &state;
-    lightState->setCurrentValue(value);
-    level       = (stepDir > 0)? 0: state.lastSampleNum();
+    lightComposite = &composite;
+    lightComposite->setCurrentValue(value);
+    level       = (stepDir > 0)? 0: composite.lastSampleNum();
     log_d("level: %u",level);
   } else {
-    auto value = (stepDir > 0)? 0 : state.getTargetValue();
-    state.setSourceValue(value);
+    auto value = (stepDir > 0)? 0 : composite.getTargetValue();
+    composite.setSourceValue(value);
   }
   portEXIT_CRITICAL(&mux);
 }

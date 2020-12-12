@@ -1,13 +1,11 @@
-#ifndef LightState_h
-#define LightState_h
+#ifndef LightComponent_h
+#define LightComponent_h
 
-#include <stddef.h>
-#include <stdint.h>
 #include "LightProfile.h"
 
-class LightState {
+class LightComponent {
 public:
-  LightState(const LightProfile& _profile, unsigned _period);
+  LightComponent(const LightProfile& _profile, unsigned _period);
   unsigned samplesNum() const;
   unsigned lastSampleNum() const;
   uint16_t operator[](size_t idx) const;
@@ -22,10 +20,10 @@ public:
   void resetTargetValue();
 private:
   const LightProfile& profile;
-  unsigned period = 0;
   uint16_t sourceValue = 0;
   uint16_t currentValue = 0;
   uint16_t targetValue = 0;
+  unsigned period = 0;
 };
 
-#endif // LightState_h
+#endif // LightComponent_h

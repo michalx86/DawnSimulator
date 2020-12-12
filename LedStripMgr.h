@@ -1,4 +1,4 @@
-#include "LightState.h"
+#include "LightComposite.h"
 
 enum LED_COLOR {
   LED_R = 0, LED_G, LED_B, LED_WW, LED_CW, LED_LAST
@@ -28,10 +28,10 @@ public:
 
 private:
   void ledWrite(LED_COLOR color, unsigned val);
-  void setDirAndLightState(int dir, LightState &profile);
+  void setDirAndLightComposite(int dir, LightComposite &profile);
 
   int LED_Pins[LED_LAST];
-  LightState* lightState;
+  LightComposite* lightComposite;
   unsigned level = 0;
   int stepDir = 0;
   portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
