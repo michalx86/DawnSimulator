@@ -1,9 +1,5 @@
 #include "LightComposite.h"
 
-enum LED_COLOR {
-  LED_R = 0, LED_G, LED_B, LED_WW, LED_CW, LED_LAST
-};
-
 
 
 class LedStripMgr {
@@ -17,7 +13,6 @@ public:
   unsigned getTargetValue();
   void setTargetValue(uint16_t value);
   int getPercent();
-  void setShouldDimm(bool dimm);
 
   void setDirAndProfile(int dir, LightProfileName profileName);
   void beginSettingTargetValue();
@@ -32,7 +27,6 @@ private:
 
   int LED_Pins[LED_LAST];
   LightComposite* lightComposite;
-  unsigned level = 0;
   int stepDir = 0;
   portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
 };
