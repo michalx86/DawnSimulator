@@ -63,7 +63,7 @@ const int LED_Pin = 2;         // digital pin for internal LED
 const int SQW_Pin = 26;        // Interrrupt pin
 
 const unsigned EEPROM_SIZE = 2;
-const unsigned EEPROM_ADDR_TARGET_LED_LEVEL = 0x0;
+const unsigned EEPROM_ADDR_MAX_LED_LEVEL = 0x0;
 
 const unsigned LIGHT_LEVEL_ALLOWED_DIFF = 10;
 
@@ -667,13 +667,13 @@ void ButtonClick(Button& b){
     if (bHoldButtonFlag == true) {
         // After a hold button is released, a button click is also registered
         if (b.pinValue() == Switch_Pin) {
-            ledMgr.finishSettingTargetValue();
-            uint16_t targetLedValue = ledMgr.getTargetValue();
-            EEPROM.write(EEPROM_ADDR_TARGET_LED_LEVEL,targetLedValue);
-            EEPROM.write(EEPROM_ADDR_TARGET_LED_LEVEL + 1, targetLedValue >> 8);
+            ledMgr.finishSettingMaxValue();
+            uint16_t maxLedValue = ledMgr.getMaxValue();
+            EEPROM.write(EEPROM_ADDR_MAX_LED_LEVEL,maxLedValue);
+            EEPROM.write(EEPROM_ADDR_MAX_LED_LEVEL + 1, maxLedValue >> 8);
             EEPROM.commit();
-            Serial.print("Saved target alarm LED light value at: ");
-            Serial.println(targetLedValue);
+            Serial.print("Saved max alarm LED light value at: ");
+            Serial.println(maxLedValue);
         } else {
             // ignore clicks for SkipClickTime ms
             // if ((millis() - buttonHoldPrevTime) > SkipClickTime) { bHoldButtonFlag = false;}
@@ -813,8 +813,6 @@ void ButtonClick(Button& b){
         if (b.pinValue() == Switch_Pin) {
           ledMgr.handleSwitch();
           displayClock(true);
-          Serial.print("New dir: ");
-          Serial.println(ledMgr.getDir());
         }
     }
 }
@@ -975,8 +973,8 @@ void ButtonHold(Button& b){
         }
 
         if (b.pinValue() == Switch_Pin) {
-            ledMgr.beginSettingTargetValue();
-            Serial.println("Setting target alarm LED light value started...");
+            ledMgr.beginSettingMaxValue();
+            Serial.println("Setting max alarm LED light value started...");
             bHoldButtonFlag = true;
         }
     }
@@ -1155,13 +1153,12 @@ void setup() {
     digitalWrite(LED_Pin, HIGH);
     pinMode(SQW_Pin, INPUT);
 
-    //pinMode(LightSensor_Pin, INPUT);
-    byte targetLedValueLow = EEPROM.read(EEPROM_ADDR_TARGET_LED_LEVEL);
-    byte targetLedValueHigh = EEPROM.read(EEPROM_ADDR_TARGET_LED_LEVEL + 1);
-    uint16_t targetLedValue = ((uint16_t)targetLedValueHigh << 8) + (uint16_t)targetLedValueLow;
-    Serial.print("Target Alarm LED value: ");
-    Serial.println(targetLedValue);
-    ledMgr.setTargetValue(targetLedValue);
+    byte maxLedValueLow = EEPROM.read(EEPROM_ADDR_MAX_LED_LEVEL);
+    byte maxLedValueHigh = EEPROM.read(EEPROM_ADDR_MAX_LED_LEVEL + 1);
+    uint16_t maxLedValue = ((uint16_t)maxLedValueHigh << 8) + (uint16_t)maxLedValueLow;
+    Serial.print("Max Alarm LED value: ");
+    Serial.println(maxLedValue);
+    ledMgr.setMaxValue(maxLedValue);
 
     /*          LCD Stuff           */
     lcd.init();                      // initialize the lcd 
@@ -1287,7 +1284,7 @@ void loop() {
       if (prevShouldMoveOn) {
         displayClock(true);
         shouldShowPercent = false;
-        log_d("Target Level reached at %d%%", ledMgr.getPercent());
+        log_d("Max Level reached at %d%%", ledMgr.getPercent());
       }
     }
     prevShouldMoveOn = shouldMoveOn;

@@ -10,13 +10,13 @@ public:
   int getDir();
   void setDir(int dir);
   unsigned getLevel();
-  unsigned getTargetValue();
-  void setTargetValue(uint16_t value);
+  unsigned getMaxValue();
+  void setMaxValue(uint16_t value);
   int getPercent();
 
   void setDirAndProfile(int dir, LightProfileName profileName);
-  void beginSettingTargetValue();
-  void finishSettingTargetValue();
+  void beginSettingMaxValue();
+  void finishSettingMaxValue();
   void handleSwitch();
 
   bool changeLight(unsigned long timeSinceLastLightChange);

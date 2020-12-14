@@ -58,18 +58,18 @@ unsigned LedStripMgr::getLevel() {
   return retVal;
 }
 
-unsigned LedStripMgr::getTargetValue() {
+unsigned LedStripMgr::getMaxValue() {
   unsigned retVal = 0;
   portENTER_CRITICAL(&mux);
-  retVal = lightComposite->getTargetValue();
+  retVal = lightComposite->getMaxValue();
   portEXIT_CRITICAL(&mux);
   return retVal;
 }
 
-void LedStripMgr::setTargetValue(uint16_t value) {
+void LedStripMgr::setMaxValue(uint16_t value) {
   portENTER_CRITICAL(&mux);
-  alarmLightComposite.setTargetValue(value);
-  switchLightComposite.setTargetValue(value);
+  alarmLightComposite.setMaxValue(value);
+  switchLightComposite.setMaxValue(value);
   portEXIT_CRITICAL(&mux);
 }
 
@@ -89,23 +89,24 @@ void LedStripMgr::setDirAndProfile(int dir, LightProfileName profileName) {
   }
 }
 
-void LedStripMgr::beginSettingTargetValue() {
+void LedStripMgr::beginSettingMaxValue() {
   portENTER_CRITICAL(&mux);
   stepDir = 1;
   lightComposite = &switchLightComposite;
   lightComposite->setLevel(0);
-  lightComposite->resetTargetValue();
-  lightComposite->setCurrentValue(0);
+  lightComposite->resetMaxValue();
   lightComposite->setSourceValue(0);
+  lightComposite->setTargetValueToMaxValue();
   portEXIT_CRITICAL(&mux);
 }
 
-void LedStripMgr::finishSettingTargetValue() {
+void LedStripMgr::finishSettingMaxValue() {
   portENTER_CRITICAL(&mux);
   stepDir = 0;
-  // TODO: When setting target values is separated, this should be removed
+  // TODO: When setting max values is separated, this should be removed
   unsigned value = lightComposite->getCurrentValue();
-  setTargetValue(value);
+  setMaxValue(value);
+  lightComposite->setTargetValueToMaxValue();
   lightComposite->setLevelToMax();
   portEXIT_CRITICAL(&mux);
 }
@@ -136,12 +137,13 @@ bool LedStripMgr::changeLight(unsigned long timeSinceLastLightChange) {
   if (timeSinceLastLightChange > lightComposite->getSampleDuration()) {
     if (stepDir != 0) {
       if (shouldMoveOn()) {
-        auto value = lightComposite->moveOn(stepDir);
+        lightComposite->moveOn(stepDir);
+        auto value = lightComposite->getCurrentValue();
         ledWrite(LED_COLOR(4), value);
         retVal = true;
       }
       if (shouldMoveOn() == false) {
-        log_d("level: %u, stepDir: %d, currentValue: %u",lightComposite->getLevel(), stepDir, lightComposite->getCurrentValue());
+        log_d("stepDir: %d, level: %u, currentValue: %u", stepDir, lightComposite->getLevel(), lightComposite->getCurrentValue());
         stepDir = 0;
       }
     }
@@ -165,22 +167,23 @@ void LedStripMgr::ledWrite(LED_COLOR color, unsigned val) {
 void LedStripMgr::setDirAndLightComposite(int dir, LightComposite &composite) {
   portENTER_CRITICAL(&mux);
   stepDir = dir;
+  log_d("New Dir: %d", stepDir);
   if (lightComposite != &composite) {
     auto value = lightComposite->getCurrentValue();
     log_d("Old level: %u",lightComposite->getLevel());
 
     lightComposite = &composite;
-    lightComposite->setSourceValue(value);
-    lightComposite->setCurrentValue(value);
+
     if (stepDir > 0) {
       lightComposite->setLevel(0);
+      lightComposite->setSourceValue(value);
+      lightComposite->setTargetValueToMaxValue();
     } else {
       lightComposite->setLevelToMax();
+      lightComposite->setSourceValue(0);
+      lightComposite->setTargetValue(value);
     }
-    log_d("New level: %u, stepDir: %d, sourceValue: %u",lightComposite->getLevel(), stepDir, lightComposite->getSourceValue());
-  } else {
-    auto value = (stepDir > 0)? 0 : composite.getTargetValue();
-    composite.setSourceValue(value);
+    log_d("New level: %u, sourceValue: %u, targetValue: %u", lightComposite->getLevel(), lightComposite->getSourceValue(), lightComposite->getTargetValue());
   }
   portEXIT_CRITICAL(&mux);
 }
