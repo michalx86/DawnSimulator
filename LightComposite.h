@@ -3,10 +3,6 @@
 
 #include "LightProfile.h"
 
-enum LED_COLOR {
-  LED_R = 0, LED_G, LED_B, LED_WW, LED_CW, LED_LAST
-};
-
 typedef struct {
   uint16_t& operator[](size_t idx) {assert(idx < LED_LAST); return component[idx];}
   uint16_t getComponent(size_t idx) const {assert(idx < LED_LAST); return component[idx];}
@@ -37,7 +33,7 @@ public:
   void moveOn(int delta);
 private:
   unsigned samplesNum() const;
-  uint16_t operator[](size_t component) const;
+  uint16_t operator()(size_t compIdx, size_t idx) const;
 
   const LightProfile& profile;
   Color_t sourceValue;

@@ -37,9 +37,9 @@ void LightComposite::setSourceValue(Color_t value) {
 
 Color_t LightComposite::getCurrentValue() const {
   Color_t retColor;
-  for (int i = 0; i < LED_LAST; i++) {
-    const int profile_val = (*this)[level];
-    retColor[i] = profile_val * (targetValue.getComponent(i) - sourceValue.getComponent(i)) / DUTY_MAX + sourceValue.getComponent(i);
+  for (int compIdx = 0; compIdx < LED_LAST; compIdx++) {
+    const int profile_val = (*this)(compIdx,level);
+    retColor[compIdx] = profile_val * (targetValue.getComponent(compIdx) - sourceValue.getComponent(compIdx)) / DUTY_MAX + sourceValue.getComponent(compIdx);
   }
   return retColor;
 }
@@ -98,6 +98,6 @@ unsigned LightComposite::samplesNum() const {
   return profile.samplesNum();
 }
 
-uint16_t LightComposite::operator[](size_t idx) const {
-  return profile[idx];
+uint16_t LightComposite::operator()(size_t compIdx, size_t idx) const {
+  return profile(compIdx,idx);
 }
