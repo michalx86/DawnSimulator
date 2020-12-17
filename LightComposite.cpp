@@ -1,6 +1,15 @@
 #include <assert.h>
 #include "LightComposite.h"
 
+int Color_t::getPercent() const {
+  long sum = 0;
+  for (int i = 0; i < LED_LAST; i++) {
+    sum += component[i];
+  }
+  return sum * 100 / (DUTY_MAX * LED_LAST);
+}
+
+
 LightComposite::LightComposite(const LightProfile& _profile, unsigned _period): profile(_profile), period(_period) {
   resetMaxValue();
   setTargetValueToMaxValue();
@@ -15,29 +24,31 @@ unsigned LightComposite::getSampleDuration() const {
 }
 
 int LightComposite::getPercent() const {
-  return getCurrentValue() * 100 / DUTY_MAX;
+  return  getCurrentValue().getPercent();
 }
 
-uint16_t LightComposite::getSourceValue() const {
+Color_t LightComposite::getSourceValue() const {
   return sourceValue;
 }
 
-void LightComposite::setSourceValue(uint16_t value) {
+void LightComposite::setSourceValue(Color_t value) {
   sourceValue = value;
 }
 
-uint16_t LightComposite::getCurrentValue() const {
-  int profile_val = (*this)[level];
-  int source_val = this->getSourceValue();
-  int target_val = this->getTargetValue();
-  return profile_val * (target_val - source_val) / DUTY_MAX + source_val;
+Color_t LightComposite::getCurrentValue() const {
+  Color_t retColor;
+  for (int i = 0; i < LED_LAST; i++) {
+    const int profile_val = (*this)[level];
+    retColor[i] = profile_val * (targetValue.getComponent(i) - sourceValue.getComponent(i)) / DUTY_MAX + sourceValue.getComponent(i);
+  }
+  return retColor;
 }
 
-uint16_t LightComposite::getTargetValue() const {
+Color_t LightComposite::getTargetValue() const {
   return targetValue;
 }
 
-void LightComposite::setTargetValue(uint16_t value) {
+void LightComposite::setTargetValue(Color_t value) {
   targetValue = value;
 }
 
@@ -45,16 +56,18 @@ void LightComposite::setTargetValueToMaxValue() {
   targetValue = maxValue;
 }
 
-uint16_t LightComposite::getMaxValue() const {
+Color_t LightComposite::getMaxValue() const {
   return maxValue;
 }
 
-void LightComposite::setMaxValue(uint16_t value) {
+void LightComposite::setMaxValue(Color_t value) {
   maxValue = value;
 }
 
 void LightComposite::resetMaxValue() {
-  maxValue = DUTY_MAX;
+  for (int i = 0; i < LED_LAST; i++) {
+    maxValue[i] = DUTY_MAX;
+  }
 }
 
 bool LightComposite::canMoveOn(int delta) {

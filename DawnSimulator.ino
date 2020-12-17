@@ -62,7 +62,7 @@ const int Rt_Pin = 14;
 const int LED_Pin = 2;         // digital pin for internal LED
 const int SQW_Pin = 26;        // Interrrupt pin
 
-const unsigned EEPROM_SIZE = 2;
+const unsigned EEPROM_SIZE = 2 * LED_LAST;
 const unsigned EEPROM_ADDR_MAX_LED_LEVEL = 0x0;
 
 const unsigned LIGHT_LEVEL_ALLOWED_DIFF = 10;
@@ -638,6 +638,17 @@ void editAlarm(byte i=0){
     lcd.blink();
 }
 
+void printColorValue(Color_t val) {
+  Serial.print('[');
+  for (int i = 0; i < LED_LAST; i++) {
+    Serial.print(val[i]);
+    if (i < LED_LAST -1) {
+      Serial.print(',');
+    }
+  }
+  Serial.print(']');
+}
+
 void ButtonClick(Button& b){
     //Clocks
     //const byte clock0=0;
@@ -668,12 +679,14 @@ void ButtonClick(Button& b){
         // After a hold button is released, a button click is also registered
         if (b.pinValue() == Switch_Pin) {
             ledMgr.finishSettingMaxValue();
-            uint16_t maxLedValue = ledMgr.getMaxValue();
-            EEPROM.write(EEPROM_ADDR_MAX_LED_LEVEL,maxLedValue);
-            EEPROM.write(EEPROM_ADDR_MAX_LED_LEVEL + 1, maxLedValue >> 8);
+            Color_t maxLedValue = ledMgr.getMaxValue();
+            for (int i = 0; i < LED_LAST; i++) {
+              EEPROM.write(EEPROM_ADDR_MAX_LED_LEVEL + 2 * i,maxLedValue[i]);
+              EEPROM.write(EEPROM_ADDR_MAX_LED_LEVEL + 2 * i + 1, maxLedValue[i] >> 8);
+            }
             EEPROM.commit();
             Serial.print("Saved max alarm LED light value at: ");
-            Serial.println(maxLedValue);
+            printColorValue(maxLedValue);
         } else {
             // ignore clicks for SkipClickTime ms
             // if ((millis() - buttonHoldPrevTime) > SkipClickTime) { bHoldButtonFlag = false;}
@@ -1153,12 +1166,16 @@ void setup() {
     digitalWrite(LED_Pin, HIGH);
     pinMode(SQW_Pin, INPUT);
 
-    byte maxLedValueLow = EEPROM.read(EEPROM_ADDR_MAX_LED_LEVEL);
-    byte maxLedValueHigh = EEPROM.read(EEPROM_ADDR_MAX_LED_LEVEL + 1);
-    uint16_t maxLedValue = ((uint16_t)maxLedValueHigh << 8) + (uint16_t)maxLedValueLow;
-    Serial.print("Max Alarm LED value: ");
-    Serial.println(maxLedValue);
+    Color_t maxLedValue;
+    for (int i = 0; i < LED_LAST; i++) {
+      byte maxLedValueLow  = EEPROM.read(EEPROM_ADDR_MAX_LED_LEVEL + i*2);
+      byte maxLedValueHigh = EEPROM.read(EEPROM_ADDR_MAX_LED_LEVEL + i*2 + 1);
+      uint16_t component = ((uint16_t)maxLedValueHigh << 8) + (uint16_t)maxLedValueLow;
+      maxLedValue[i] = component;
+    }
     ledMgr.setMaxValue(maxLedValue);
+    Serial.print("Max Alarm LED value: ");
+    printColorValue(maxLedValue);
 
     /*          LCD Stuff           */
     lcd.init();                      // initialize the lcd 

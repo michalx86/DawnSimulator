@@ -10,8 +10,8 @@ public:
   int getDir();
   void setDir(int dir);
   unsigned getLevel();
-  unsigned getMaxValue();
-  void setMaxValue(uint16_t value);
+  Color_t getMaxValue();
+  void setMaxValue(Color_t value);
   int getPercent();
 
   void setDirAndProfile(int dir, LightProfileName profileName);

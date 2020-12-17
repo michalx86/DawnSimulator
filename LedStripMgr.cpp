@@ -58,15 +58,15 @@ unsigned LedStripMgr::getLevel() {
   return retVal;
 }
 
-unsigned LedStripMgr::getMaxValue() {
-  unsigned retVal = 0;
+Color_t LedStripMgr::getMaxValue() {
+  Color_t retVal;
   portENTER_CRITICAL(&mux);
   retVal = lightComposite->getMaxValue();
   portEXIT_CRITICAL(&mux);
   return retVal;
 }
 
-void LedStripMgr::setMaxValue(uint16_t value) {
+void LedStripMgr::setMaxValue(Color_t value) {
   portENTER_CRITICAL(&mux);
   alarmLightComposite.setMaxValue(value);
   switchLightComposite.setMaxValue(value);
@@ -95,7 +95,7 @@ void LedStripMgr::beginSettingMaxValue() {
   lightComposite = &switchLightComposite;
   lightComposite->setLevel(0);
   lightComposite->resetMaxValue();
-  lightComposite->setSourceValue(0);
+  lightComposite->setSourceValue(Color_t {});
   lightComposite->setTargetValueToMaxValue();
   portEXIT_CRITICAL(&mux);
 }
@@ -104,7 +104,7 @@ void LedStripMgr::finishSettingMaxValue() {
   portENTER_CRITICAL(&mux);
   stepDir = 0;
   // TODO: When setting max values is separated, this should be removed
-  unsigned value = lightComposite->getCurrentValue();
+  Color_t value = lightComposite->getCurrentValue();
   setMaxValue(value);
   lightComposite->setTargetValueToMaxValue();
   lightComposite->setLevelToMax();
@@ -139,7 +139,9 @@ bool LedStripMgr::changeLight(unsigned long timeSinceLastLightChange) {
       if (shouldMoveOn()) {
         lightComposite->moveOn(stepDir);
         auto value = lightComposite->getCurrentValue();
-        ledWrite(LED_COLOR(4), value);
+        for (int i = 0; i < LED_LAST; i++) {
+          ledWrite((LED_COLOR)i, value[i]);
+        }
         retVal = true;
       }
       if (shouldMoveOn() == false) {
@@ -156,12 +158,7 @@ bool LedStripMgr::changeLight(unsigned long timeSinceLastLightChange) {
   # Private
   ###############################################################*/
 void LedStripMgr::ledWrite(LED_COLOR color, unsigned val) {
-  static unsigned last_led_ww_value = 255;
-
-  if (val != last_led_ww_value) {
-    last_led_ww_value = val;
-    ledcWrite(LEDC_CHANNEL_0 + color, last_led_ww_value);
-  }
+  ledcWrite(LEDC_CHANNEL_0 + color, val);
 }
 
 void LedStripMgr::setDirAndLightComposite(int dir, LightComposite &composite) {
@@ -180,7 +177,7 @@ void LedStripMgr::setDirAndLightComposite(int dir, LightComposite &composite) {
       lightComposite->setTargetValueToMaxValue();
     } else {
       lightComposite->setLevelToMax();
-      lightComposite->setSourceValue(0);
+      lightComposite->setSourceValue(Color_t {});
       lightComposite->setTargetValue(value);
     }
     log_d("New level: %u, sourceValue: %u, targetValue: %u", lightComposite->getLevel(), lightComposite->getSourceValue(), lightComposite->getTargetValue());
