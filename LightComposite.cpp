@@ -3,10 +3,14 @@
 
 int Color_t::getPercent() const {
   long sum = 0;
-  for (int i = 0; i < LED_LAST; i++) {
+  for (int i = 0; i < 3; i++) {
+    sum += component[i] / 2;
+  }
+  for (int i = 3; i < LED_LAST; i++) {
     sum += component[i];
   }
-  return sum * 100 / (DUTY_MAX * LED_LAST);
+  unsigned half_duty = DUTY_MAX / 2;
+  return sum * 100 / (3 * half_duty + 2* DUTY_MAX);
 }
 
 

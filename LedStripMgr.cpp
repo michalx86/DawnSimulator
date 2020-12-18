@@ -138,14 +138,17 @@ bool LedStripMgr::changeLight(unsigned long timeSinceLastLightChange) {
     if (stepDir != 0) {
       if (shouldMoveOn()) {
         lightComposite->moveOn(stepDir);
-        auto value = lightComposite->getCurrentValue();
+        auto currVal = lightComposite->getCurrentValue();
+        //log_d("currentValue: [%u,%u,%u,%u,%u]", currVal[0], currVal[1],currVal[2],currVal[3],currVal[4]);
+
         for (int i = 0; i < LED_LAST; i++) {
-          ledWrite((LED_COLOR)i, value[i]);
+          ledWrite((LED_COLOR)i, currVal[i]);
         }
         retVal = true;
       }
       if (shouldMoveOn() == false) {
-        log_d("stepDir: %d, level: %u, currentValue: %u", stepDir, lightComposite->getLevel(), lightComposite->getCurrentValue());
+        Color_t currVal = lightComposite->getCurrentValue();
+        log_d("stepDir: %d, level: %u, currentValue: [%u,%u,%u,%u,%u]", stepDir, lightComposite->getLevel(), currVal[0], currVal[1],currVal[2],currVal[3],currVal[4]);
         stepDir = 0;
       }
     }
@@ -180,7 +183,15 @@ void LedStripMgr::setDirAndLightComposite(int dir, LightComposite &composite) {
       lightComposite->setSourceValue(Color_t {});
       lightComposite->setTargetValue(value);
     }
-    log_d("New level: %u, sourceValue: %u, targetValue: %u", lightComposite->getLevel(), lightComposite->getSourceValue(), lightComposite->getTargetValue());
+    Color_t srcVal = lightComposite->getSourceValue();
+    Color_t trgVal = lightComposite->getTargetValue();
+    log_d("New level: %u, sourceValue: [%u,%u,%u,%u,%u], targetValue: [%u,%u,%u,%u,%u]", lightComposite->getLevel(), srcVal[0], srcVal[1], srcVal[2], srcVal[3], srcVal[4], trgVal[0], trgVal[1], trgVal[2], trgVal[3], trgVal[4]);
   }
   portEXIT_CRITICAL(&mux);
+}
+
+void diagnostic() {
+  for (int i = 0; i <= switchLightComposite.lastSampleNum(); i++) {
+    log_d("profile: [%u,%u,%u,%u,%u]", switchLightComposite(0,i), switchLightComposite(1,i), switchLightComposite(2,i), switchLightComposite(3,i), switchLightComposite(4,i));
+  }
 }

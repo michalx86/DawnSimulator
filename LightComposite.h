@@ -31,9 +31,9 @@ public:
   void setLevel(unsigned _level);
   void setLevelToMax();
   void moveOn(int delta);
+  uint16_t operator()(size_t compIdx, size_t idx) const;
 private:
   unsigned samplesNum() const;
-  uint16_t operator()(size_t compIdx, size_t idx) const;
 
   const LightProfile& profile;
   Color_t sourceValue;

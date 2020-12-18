@@ -1,7 +1,15 @@
 #include <stddef.h>
 #include <assert.h>
 #include "LightProfile.h"
+#include <Esp.h>
 
+typedef struct {
+  float low;
+  float high;
+} Boundaries_t;
+
+static Boundaries_t alarm_boundaries[LED_LAST]  = {{.0f, .45f}, {.05f, .55f}, {.1f, .65f}, {.15f, .75f}, {.4f, 1.0f}};
+static Boundaries_t switch_boundaries[LED_LAST] = {{.0f, .45f}, {.05f, .55f}, {.1f, .65f}, {.15f, .75f}, {.4f, 1.0f}};
 
 static uint16_t alarm_arr[LED_LAST][10] = {};
 static uint16_t switch_arr[LED_LAST][120] = {};
@@ -10,14 +18,36 @@ LightProfile::LightProfile(LightProfileName profileName): profile(profileName) {
   auto num_samples = samplesNum();
   for (int compIdx = 0; compIdx < LED_LAST; compIdx++) {
     uint16_t* arr = nullptr;
+    float low = .0f;
+    float high = .0f;
     switch (profile) {
-      case LightProfileName::Alarm : arr = &alarm_arr[compIdx][0]; break;
-      case LightProfileName::Switch : arr = &switch_arr[compIdx][0]; break;
+      case LightProfileName::Alarm : arr = &alarm_arr[compIdx][0]; low = alarm_boundaries[compIdx].low; high = alarm_boundaries[compIdx].high; break;
+      case LightProfileName::Switch : arr = &switch_arr[compIdx][0]; low = switch_boundaries[compIdx].low; high = switch_boundaries[compIdx].high; break;
       default : break;
     }
     assert(arr);
-    for (unsigned long i = 0; i < num_samples; i++) {
-      arr[i] = (unsigned long)DUTY_MAX * i * i / (unsigned long)(num_samples-1) / (unsigned long)(num_samples-1);
+    assert((low >= .0f) && (low <= 1.0f));
+    assert((high >= .0f) && (high <= 1.0f));
+    assert(low <= high);
+    unsigned lowIdx = low * num_samples;
+    unsigned highIdx = high * num_samples;
+
+    if (lowIdx == 0) {
+      lowIdx = 1;
+    }
+    for (unsigned i = 0; i < lowIdx; i++) {
+      arr[i] = 0;
+    }
+
+    unsigned long num_varying_samples = highIdx - lowIdx;
+    unsigned long divisor = num_varying_samples * num_varying_samples;
+    unsigned long val = 1;
+    for (unsigned i = lowIdx; i < highIdx; i++, val++) {
+      arr[i] = (unsigned long)DUTY_MAX * val * val / divisor;
+    }
+
+    for (unsigned long i = highIdx; i < num_samples; i++) {
+      arr[i] = DUTY_MAX;
     }
   }
 }
