@@ -1,7 +1,7 @@
 #include <Esp.h>+
 #include "LedStripMgr.h"
 
-const unsigned ALARM_LIGHTENING_PERIOD_MS = 4000;//20 * 60 * 1000;
+const unsigned ALARM_LIGHTENING_PERIOD_MS = 20 * 60 * 1000;
 const unsigned SWITCH_LIGHTENING_PERIOD_MS = 2000;
 
 // use 500 Hz as a LEDC base frequency
@@ -190,8 +190,13 @@ void LedStripMgr::setDirAndLightComposite(int dir, LightComposite &composite) {
   portEXIT_CRITICAL(&mux);
 }
 
-void diagnostic() {
-  for (int i = 0; i <= switchLightComposite.lastSampleNum(); i++) {
-    log_d("profile: [%u,%u,%u,%u,%u]", switchLightComposite(0,i), switchLightComposite(1,i), switchLightComposite(2,i), switchLightComposite(3,i), switchLightComposite(4,i));
-  }
+void LedStripMgr::diagnostic() {
+//  log_d("Alarm light profile:");
+//  for (int i = 0; i <= 100; i++) { // alarmLightComposite.lastSampleNum()
+//    log_d("%4d:  [%u,%u,%u,%u,%u]", i, alarmLightComposite(0,i), alarmLightComposite(1,i), alarmLightComposite(2,i), alarmLightComposite(3,i), alarmLightComposite(4,i));
+//  }
+//  log_d("Switch light profile:");
+//  for (int i = 0; i <= switchLightComposite.lastSampleNum(); i++) {
+//    log_d("%4d:  [%u,%u,%u,%u,%u]", i, switchLightComposite(0,i), switchLightComposite(1,i), switchLightComposite(2,i), switchLightComposite(3,i), switchLightComposite(4,i));
+//  }
 }

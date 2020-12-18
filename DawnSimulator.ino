@@ -66,6 +66,7 @@ const unsigned EEPROM_SIZE = 2 * LED_LAST;
 const unsigned EEPROM_ADDR_MAX_LED_LEVEL = 0x0;
 
 const unsigned LIGHT_LEVEL_ALLOWED_DIFF = 10;
+const unsigned AUTO_SWITCH_OFF_TIMEOUT = 3 * 60 * 60 * 1000;
 
 unsigned lightLevelAtBrightening = 0;
 boolean prevShouldMoveOn = false;
@@ -1330,6 +1331,11 @@ void LedTaskLoop( void * parameter ) {
       if (lightChanged) {
         lastLightChangeTime = mills;
         //log_d("LT duration: %lu", millis() - mills);
+      } else {
+        if ((timeSinceLastLightChange > AUTO_SWITCH_OFF_TIMEOUT) && (ledMgr.getLevel() != 0)) {
+          ledMgr.setDirAndProfile(-1, LightProfileName::Alarm);
+          log_d("LED auto-switch off.");
+        }
       }
 
       delay(2);

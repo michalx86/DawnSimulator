@@ -24,6 +24,7 @@ public:
 private:
   void ledWrite(LED_COLOR color, unsigned val);
   void setDirAndLightComposite(int dir, LightComposite &profile);
+  void diagnostic();
 
   int LED_Pins[LED_LAST];
   LightComposite* lightComposite;

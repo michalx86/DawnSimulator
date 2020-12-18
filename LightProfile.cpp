@@ -11,7 +11,7 @@ typedef struct {
 static Boundaries_t alarm_boundaries[LED_LAST]  = {{.0f, .45f}, {.05f, .55f}, {.1f, .65f}, {.15f, .75f}, {.4f, 1.0f}};
 static Boundaries_t switch_boundaries[LED_LAST] = {{.0f, .45f}, {.05f, .55f}, {.1f, .65f}, {.15f, .75f}, {.4f, 1.0f}};
 
-static uint16_t alarm_arr[LED_LAST][10] = {};
+static uint16_t alarm_arr[LED_LAST][2000] = {};
 static uint16_t switch_arr[LED_LAST][120] = {};
 
 LightProfile::LightProfile(LightProfileName profileName): profile(profileName) {
@@ -39,11 +39,11 @@ LightProfile::LightProfile(LightProfileName profileName): profile(profileName) {
       arr[i] = 0;
     }
 
-    unsigned long num_varying_samples = highIdx - lowIdx;
-    unsigned long divisor = num_varying_samples * num_varying_samples;
-    unsigned long val = 1;
+    unsigned long long num_varying_samples = highIdx - lowIdx;
+    unsigned long long divisor = num_varying_samples * num_varying_samples;
+    unsigned long long val = 1;
     for (unsigned i = lowIdx; i < highIdx; i++, val++) {
-      arr[i] = (unsigned long)DUTY_MAX * val * val / divisor;
+      arr[i] = (unsigned long long)DUTY_MAX * val * val / divisor;
     }
 
     for (unsigned long i = highIdx; i < num_samples; i++) {
