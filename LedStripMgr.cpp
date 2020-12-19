@@ -96,7 +96,6 @@ void LedStripMgr::beginSettingMaxValue() {
   lightComposite->setLevel(0);
   lightComposite->resetMaxValue();
   lightComposite->setSourceValue(Color_t {});
-  lightComposite->setTargetValueToMaxValue();
   portEXIT_CRITICAL(&mux);
 }
 
@@ -106,7 +105,6 @@ void LedStripMgr::finishSettingMaxValue() {
   // TODO: When setting max values is separated, this should be removed
   Color_t value = lightComposite->getCurrentValue();
   setMaxValue(value);
-  lightComposite->setTargetValueToMaxValue();
   lightComposite->setLevelToMax();
   portEXIT_CRITICAL(&mux);
 }

@@ -47,18 +47,31 @@
 /* ***********************************************************
  *                    LED Control Constants                  *
  * ********************************************************* */
+//  C A U T I O N    ! ! !
+// ESP32 Datasheet:
+// https://www.espressif.com/sites/default/files/documentation/esp32_datasheet_en.pdf
+//   2.4 Strapping Pins
+//   There are five strapping pins:
+//   MTDI   - 12  (MISO)
+//   GPIO0
+//   GPIO2
+//   MTDO   - 15
+//   GPIO5
+// If you use one of above (in particular GPIO12) you might see:
+// "MD5 of file doas not match data in flash"
 
 
-const int LightSensor_Pin = 04;
-const int Led_R_Pin  = 12;      // PWM
-const int Led_G_Pin  = 15;      // PWM
-const int Led_B_Pin  = 33;      // PWM
-const int Led_WW_Pin = 5;       // PWM
-const int Led_CW_Pin = 13;      // PWM
-const int Switch_Pin = 17;
-const int Mode_Pin = 16;
-const int Lt_Pin = 27;
-const int Rt_Pin = 14;
+const int Led_CW_Pin = 14;      // PWM
+const int Led_WW_Pin = 27;      // PWM
+const int Led_G_Pin  = 16;      // PWM
+const int Led_R_Pin  = 17;      // PWM
+const int Led_B_Pin  = 25;      // PWM
+//4 - OK for analog input
+const int Rt_Pin = 35;
+const int Lt_Pin = 34;
+const int Mode_Pin = 36;
+const int Switch_Pin = 39;
+
 const int LED_Pin = 2;         // digital pin for internal LED
 const int SQW_Pin = 26;        // Interrrupt pin
 
@@ -100,7 +113,7 @@ Lcd_I2C lcd;
     Button ModeKey(Mode_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
     Button LtKey(Lt_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
     Button RtKey(Rt_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
-    Button SwitchKey(Switch_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
+    Button SwitchKey(Switch_Pin, BUTTON_PULLUP, true, DebouceTime);
 
     const int Button_Hold_Time = 3000;      // button hold length of time in ms
     const int Alarm_View_Pause = 2000;      // View Alarm Length of time in ms
@@ -1174,6 +1187,11 @@ void setup() {
       uint16_t component = ((uint16_t)maxLedValueHigh << 8) + (uint16_t)maxLedValueLow;
       maxLedValue[i] = component;
     }
+    maxLedValue[0] = 500;
+    maxLedValue[1] = 350;
+    maxLedValue[2] = 50;
+    maxLedValue[3] = DUTY_MAX; //3000;
+    maxLedValue[4] = 000;
     ledMgr.setMaxValue(maxLedValue);
     Serial.print("Max Alarm LED value: ");
     printColorValue(maxLedValue);

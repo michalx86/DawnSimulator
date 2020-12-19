@@ -8,8 +8,8 @@ typedef struct {
   float high;
 } Boundaries_t;
 
-static Boundaries_t alarm_boundaries[LED_LAST]  = {{.0f, .45f}, {.05f, .55f}, {.1f, .65f}, {.15f, .75f}, {.4f, 1.0f}};
-static Boundaries_t switch_boundaries[LED_LAST] = {{.0f, .45f}, {.05f, .55f}, {.1f, .65f}, {.15f, .75f}, {.4f, 1.0f}};
+static Boundaries_t alarm_boundaries[LED_LAST] = {{.0f, .35f}, {.0f, .55f}, {.25f, .75f}, {.25f, 1.0f}, {.4f, 1.0f}};
+static Boundaries_t switch_boundaries[LED_LAST] = {{.0f, .35f}, {.0f, .55f}, {.25f, .75f}, {.25f, 1.0f}, {.4f, 1.0f}};
 
 static uint16_t alarm_arr[LED_LAST][2000] = {};
 static uint16_t switch_arr[LED_LAST][120] = {};

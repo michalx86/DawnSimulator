@@ -66,12 +66,15 @@ Color_t LightComposite::getMaxValue() const {
 
 void LightComposite::setMaxValue(Color_t value) {
   maxValue = value;
+  setTargetValueToMaxValue();
 }
 
 void LightComposite::resetMaxValue() {
+  Color_t color;
   for (int i = 0; i < LED_LAST; i++) {
-    maxValue[i] = DUTY_MAX;
+    color[i] = DUTY_MAX;
   }
+  setMaxValue(color);
 }
 
 bool LightComposite::canMoveOn(int delta) {
