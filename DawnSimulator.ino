@@ -36,6 +36,30 @@
 /* ***********************************************************
  *                         Libraries                         *
  * ********************************************************* */
+/*
+#define ST7789_DRIVER
+#define TFT_SDA_READ
+#define TFT_WIDTH  240
+#define TFT_HEIGHT 240
+
+#define TFT_RGB_ORDER TFT_BGR  // Colour order Blue-Green-Red
+
+//#define TFT_MISO 19
+#define TFT_MOSI 23
+#define TFT_SCLK 18
+#define TFT_CS   15  // Chip select control pin
+#define TFT_DC    2  // Data Command control pin
+#define TFT_RST   4  // Reset pin (could connect to RST pin)
+//#define TFT_RST  -1  // Set TFT_RST to -1 if display RESET is connected to ESP32 board RST
+
+//#define TFT_BL   32  // LED back-light (required for M5Stack)
+
+#define TFT_INVERSION_ON
+*/
+
+#include <SPI.h>
+#include <TFT_eSPI.h>       // Hardware-specific library
+
 #include <Esp.h>
 #include "SimpleAlarmClock.h"          // https://github.com/rmorenojr/SimpleAlarmClock
 #include <Button.h>                    // https://github.com/rmorenojr/Button
@@ -69,8 +93,8 @@ const int Led_B_Pin  = 25;      // PWM
 //4 - OK for analog input
 const int Rt_Pin = 35;
 const int Lt_Pin = 34;
-const int Mode_Pin = 36;
-const int Switch_Pin = 39;
+const int Mode_Pin = 39;
+const int Switch_Pin = 36;
 
 const int LED_Pin = 2;         // digital pin for internal LED
 const int SQW_Pin = 26;        // Interrrupt pin
@@ -90,6 +114,7 @@ LedStripMgr ledMgr(Led_R_Pin, Led_G_Pin, Led_B_Pin, Led_WW_Pin, Led_CW_Pin);
  *                      Global Constants                     *
  *                    Hardware Definitions                   *
  * ********************************************************* */
+TFT_eSPI tft = TFT_eSPI();  // Invoke custom library
 Lcd_I2C lcd;
                                              
     const byte RTC_addr=0x68;                // I2C address of DS3231 RTC
@@ -113,7 +138,7 @@ Lcd_I2C lcd;
     Button ModeKey(Mode_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
     Button LtKey(Lt_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
     Button RtKey(Rt_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
-    Button SwitchKey(Switch_Pin, BUTTON_PULLUP, true, DebouceTime);
+    Button SwitchKey(Switch_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
 
     const int Button_Hold_Time = 3000;      // button hold length of time in ms
     const int Alarm_View_Pause = 2000;      // View Alarm Length of time in ms
@@ -1000,9 +1025,9 @@ void ButtonHold(Button& b){
         }
 
         if (b.pinValue() == Switch_Pin) {
-            ledMgr.beginSettingMaxValue();
-            Serial.println("Setting max alarm LED light value started...");
-            bHoldButtonFlag = true;
+//            ledMgr.beginSettingMaxValue();
+//            Serial.println("Setting max alarm LED light value started...");
+//            bHoldButtonFlag = true;
         }
     }
 }
@@ -1172,6 +1197,9 @@ void setup() {
 
     EEPROM.begin(EEPROM_SIZE);
 
+    tft.init();
+    tft.fillScreen(TFT_BLACK);
+
     ledMgr.init();
 
     /*         Pin Modes            */
@@ -1187,11 +1215,16 @@ void setup() {
       uint16_t component = ((uint16_t)maxLedValueHigh << 8) + (uint16_t)maxLedValueLow;
       maxLedValue[i] = component;
     }
-    maxLedValue[0] = 500;
+    maxLedValue[0] = 1000;
+    maxLedValue[1] = 700;
+    maxLedValue[2] = 100;
+    maxLedValue[3] = DUTY_MAX;
+    maxLedValue[4] = 2000;
+/*    maxLedValue[0] = 500;
     maxLedValue[1] = 350;
     maxLedValue[2] = 50;
-    maxLedValue[3] = DUTY_MAX; //3000;
-    maxLedValue[4] = 000;
+    maxLedValue[3] = DUTY_MAX;
+    maxLedValue[4] = 2000;*/
     ledMgr.setMaxValue(maxLedValue);
     Serial.print("Max Alarm LED value: ");
     printColorValue(maxLedValue);
@@ -1233,6 +1266,18 @@ void setup() {
     delay(500);  // needed to start-up task1
 
     attachInterrupt(digitalPinToInterrupt(SQW_Pin), AlarmIntrCallback, FALLING);
+
+    // Set "cursor" at top left corner of display (0,0) and select font 4
+    tft.setCursor(0, 0, 4);
+    tft.setTextColor(TFT_RED, TFT_BLACK);
+    tft.println("Hello!\n");
+    tft.setTextColor(TFT_ORANGE, TFT_BLACK);
+    tft.println("This is");
+    tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+    tft.println("Dawn ");
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.println("Simulator");
+    tft.println("     :D");
 
     //Debug code
     Serial.print("Register 0x0E = ");Serial.println(Clock.getCtrlRegister(), BIN);
