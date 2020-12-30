@@ -76,15 +76,13 @@ class Button {
   private: 
     uint8_t             pin;
     uint8_t             mode;
-    uint8_t             currentButtonState;
-    bool                changed;
     bool                debounceMode;
+    int                 debounceDuration;
     bool                doubleclickFound;
     unsigned long       pressedStartTime;
     unsigned long       previouspressedStartTime;
     unsigned long       releasedTime;
     unsigned long       debounceStartTime;
-    int                 debounceDuration;
     buttonEventHandler  cb_onPress;
     buttonEventHandler  cb_onRelease;
     buttonEventHandler  cb_onClick;
@@ -94,6 +92,8 @@ class Button {
     bool                triggeredHoldEvent;
     uint8_t             latchedKey;
     std::vector<uint32_t> buttonLimits;
+    uint8_t             currentButtonState;
+    bool                changed;
 };
 
 #endif

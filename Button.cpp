@@ -60,10 +60,6 @@ Button::Button(uint8_t buttonPin, uint8_t buttonMode, bool _debounceMode, int _d
   pin=buttonPin;
   pinMode(pin,INPUT);
   
-  debounceMode = _debounceMode;
-  debounceDuration = _debounceDuration;
-  debounceStartTime = millis();
-
   switch (buttonMode) {
     case BUTTON_PULLDOWN:
       pulldown(); 
@@ -79,20 +75,24 @@ Button::Button(uint8_t buttonPin, uint8_t buttonMode, bool _debounceMode, int _d
       break;
   }
 
-  changed = false;
-  
+  debounceMode = _debounceMode;
+  debounceDuration = _debounceDuration;
+  doubleclickFound = false;
+  pressedStartTime = -1;
+  previouspressedStartTime = 0;
+  releasedTime = 0;
+  debounceStartTime = millis();
   cb_onPress = 0;
   cb_onRelease = 0;
   cb_onClick = 0;
   cb_onDoubleClick = 0;
   cb_onHold = 0;
-  previouspressedStartTime = 0;
   numberOfPresses = 0;
   triggeredHoldEvent = true;
-  doubleclickFound = false;
   latchedKey = 0;
   buttonLimits = _buttonLimits;
   currentButtonState = buttonLimits.size();
+  changed = false;
 }
 
 
@@ -148,8 +148,8 @@ void Button::process(void)
   //handle state changes
   if (currentButtonState != previousButtonState)
   {
-     //Serial.print("state changed: ");
-     //Serial.println(currentButtonState);
+    // Serial.print("state changed: ");
+    // Serial.println(currentButtonState);
     debounceStartTime = millis();
     return;  
   }
