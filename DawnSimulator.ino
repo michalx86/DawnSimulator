@@ -62,7 +62,7 @@
 
 #include <Esp.h>
 #include "SimpleAlarmClock.h"          // https://github.com/rmorenojr/SimpleAlarmClock
-#include <Button.h>                    // https://github.com/rmorenojr/Button
+#include "Button.h"                    // https://github.com/rmorenojr/Button
 #include <EEPROM.h>
 #include "LightProfile.h"
 #include "Lcd_I2C.h"
@@ -91,10 +91,7 @@ const int Led_G_Pin  = 16;      // PWM
 const int Led_R_Pin  = 17;      // PWM
 const int Led_B_Pin  = 25;      // PWM
 //4 - OK for analog input
-const int Rt_Pin = 35;
-const int Lt_Pin = 34;
-const int Mode_Pin = 39;
-const int Switch_Pin = 36;
+const int MultiButton_Pin = 35;
 
 const int LED_Pin = 2;         // digital pin for internal LED
 const int SQW_Pin = 26;        // Interrrupt pin
@@ -135,14 +132,21 @@ Lcd_I2C lcd;
     SimpleAlarmClock Clock(RTC_addr, EEPROM_addr, INTCN);
 
     const int DebouceTime = 30;               // button debouce time in ms
-    Button ModeKey(Mode_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
-    Button LtKey(Lt_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
-    Button RtKey(Rt_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
-    Button SwitchKey(Switch_Pin, BUTTON_PULLUP_INTERNAL, true, DebouceTime);
+
+    enum Keys { KEY_RIGHT, KEY_SWITCH_MAX, KEY_SWITCH_CUSTOM, KEY_LEFT, KEY_MODE };
+
+    // The following are expected values on Keyboard Pin for:
+    // Right (KEY_RIGHT):            0
+    // Down  (KEY_SWITCH_MAX):     400
+    // Up:   (KEY_SWITCH_CUSTOM): 1100
+    // Left  (KEY_LEFT):          1800
+    // Menu  (KEY_MODE):          2700
+    // no key pressed:            4095
+    // So we create a vector with following limits separating buttons readouts:
+    Button MultiButton(MultiButton_Pin, BUTTON_MULTIKEY,true, DebouceTime, {200, 700, 1400, 2200, 3300});
 
     const int Button_Hold_Time = 3000;      // button hold length of time in ms
     const int Alarm_View_Pause = 2000;      // View Alarm Length of time in ms
-    const int SkipClickTime = 60;           // Time in ms to ignore button click
     const unsigned flashInterval = 1000;         // Alarm flashing interval
 
     //Alarm types:
@@ -696,27 +700,29 @@ void ButtonClick(Button& b){
 
     //Debug code to Serial monitor
     Serial.print("Button Click - ");
-    switch(b.pinValue()){
-        case Mode_Pin:
-            Serial.println("Mode_Pin");
+    switch(b.keyValue()){
+        case KEY_MODE:
+            Serial.println("KEY_MODE");
             break;
-        case Lt_Pin:
-            Serial.println("Lt_Pin");
+        case KEY_LEFT:
+            Serial.println("KEY_LEFT");
             break;
-        case Rt_Pin:
-            Serial.println("Rt_Pin");
+        case KEY_RIGHT:
+            Serial.print("KEY_RIGHT: ");
+            Serial.println(b.keyValue());
             break;
-        case Switch_Pin:
-            Serial.println("Switch_Pin");
+        case KEY_SWITCH_MAX:
+            Serial.println("KEY_SWITCH_MAX");
             break;
         default:
+            Serial.println("UNKNOWN");
             //do nothing
             break;
     }
 
     if (bHoldButtonFlag == true) {
         // After a hold button is released, a button click is also registered
-        if (b.pinValue() == Switch_Pin) {
+        if (b.keyValue() == KEY_SWITCH_MAX) {
             ledMgr.finishSettingMaxValue();
             Color_t maxLedValue = ledMgr.getMaxValue();
             for (int i = 0; i < LED_LAST; i++) {
@@ -727,8 +733,6 @@ void ButtonClick(Button& b){
             Serial.print("Saved max alarm LED light value at: ");
             printColorValue(maxLedValue);
         } else {
-            // ignore clicks for SkipClickTime ms
-            // if ((millis() - buttonHoldPrevTime) > SkipClickTime) { bHoldButtonFlag = false;}
             Serial.println("Button Click ignored");
         }
         bHoldButtonFlag = false;
@@ -747,14 +751,14 @@ void ButtonClick(Button& b){
             case ShowClock:
                 //ShowClock Mode
                 //show alarm screens
-                switch (b.pinValue()){
-                    case Mode_Pin:
+                switch (b.keyValue()){
+                    case KEY_MODE:
                         //Do Nothing
                         break;
-                    case Lt_Pin:
+                    case KEY_LEFT:
                         toggleShowAlarm(alarm1);
                         break;
-                    case Rt_Pin:
+                    case KEY_RIGHT:
                         toggleShowAlarm(alarm2);
                         break;
                     default:
@@ -765,16 +769,16 @@ void ButtonClick(Button& b){
             //ShowAlarm1 or ShowAlarm2 does nothing
             case EditClock:
                 //Edit Clock Mode
-                switch (b.pinValue()){
-                    case Mode_Pin:
+                switch (b.keyValue()){
+                    case KEY_MODE:
                         //Increments cursor position
                         //cpIndex += 1 % 7;
                         cpIndex += 1;
                         cpIndex %= 5;
                         break;
-                    case Lt_Pin:
+                    case KEY_LEFT:
                         shouldIncrement = false;
-                    case Rt_Pin:
+                    case KEY_RIGHT:
                         // First  Row dd/mm/yyyy ##.#°
                         //             0  1    2
                         // Second Row hh:mm dt PWSCPSN
@@ -816,16 +820,16 @@ void ButtonClick(Button& b){
                 alarm = alarm1;
             case EditAlarm2:
                 //Edit Alarm2
-                switch (b.pinValue()){
-                    case Mode_Pin:
+                switch (b.keyValue()){
+                    case KEY_MODE:
                         //Increments cursor position
                         cpIndex += 1;
                         cpIndex %= 9;
                         break;
-                    case Lt_Pin:
+                    case KEY_LEFT:
                         // Decrements value 
                         shouldIncrement = false;
-                    case Rt_Pin:
+                    case KEY_RIGHT:
                         // Increments value
                         // Second Row hh:mm PWSCPSN
                         //             0  1 2345678 
@@ -862,7 +866,7 @@ void ButtonClick(Button& b){
                 //todo
                 break;
         }
-        if (b.pinValue() == Switch_Pin) {
+        if (b.keyValue() == KEY_SWITCH_MAX) {
           ledMgr.handleSwitch();
           displayClock(true);
         }
@@ -876,20 +880,21 @@ void ButtonHold(Button& b){
 
     //Debug code to Serial monitor
     Serial.print("Button Hold - ");
-    switch(b.pinValue()){
-        case Mode_Pin:
-            Serial.println("Mode_Pin");
+    switch(b.keyValue()){
+        case KEY_MODE:
+            Serial.println("KEY_MODE");
             break;
-        case Lt_Pin:
-            Serial.println("Lt_Pin");
+        case KEY_LEFT:
+            Serial.println("KEY_LEFT");
             break;
-        case Rt_Pin:
-            Serial.println("Rt_Pin");
+        case KEY_RIGHT:
+            Serial.println("KEY_RIGHT");
             break;
-        case Switch_Pin:
-            Serial.println("Switch_Pin");
+        case KEY_SWITCH_MAX:
+            Serial.println("KEY_SWITCH_MAX");
             break;
         default:
+            Serial.println("UNKNOWN");
             //do nothing
             break;
     }
@@ -907,15 +912,15 @@ void ButtonHold(Button& b){
                 Clock.clearOSFStatus();
                 break;
             case ShowClock:
-                switch (b.pinValue()){
-                    case Mode_Pin:
+                switch (b.keyValue()){
+                    case KEY_MODE:
                         //Edit main clock display
                         ClockState = EditClock;
                         cpIndex = 0;
                         buttonHoldPrevTime = millis();
                         bHoldButtonFlag = true;
                         break;
-                    case Lt_Pin:
+                    case KEY_LEFT:
                         //Edit Alarm1
                         ClockState = EditAlarm1;
                         cpIndex = 0;
@@ -923,7 +928,7 @@ void ButtonHold(Button& b){
                         bHoldButtonFlag = true;
                         displayAlarm(1,true);
                         break;
-                    case Rt_Pin:
+                    case KEY_RIGHT:
                         //Edit Alarm2
                         ClockState = EditAlarm2;
                         cpIndex = 0;
@@ -936,10 +941,10 @@ void ButtonHold(Button& b){
                 }
                 break;
             case ShowAlarm1:
-                switch (b.pinValue()){
-                    case Mode_Pin:
+                switch (b.keyValue()){
+                    case KEY_MODE:
                         break;
-                    case Lt_Pin:
+                    case KEY_LEFT:
                         ClockState = EditAlarm1;
                         cpIndex = 0;
                         buttonHoldPrevTime = millis();
@@ -947,7 +952,7 @@ void ButtonHold(Button& b){
                         displayAlarm(1,true);
                         //Switch to edit mode
                         break;
-                    case Rt_Pin:
+                    case KEY_RIGHT:
                         //Do Nothing
                         break;
                     default:
@@ -955,12 +960,12 @@ void ButtonHold(Button& b){
                 }
                 break;
             case ShowAlarm2:
-                switch (b.pinValue()){
-                    case Mode_Pin:
+                switch (b.keyValue()){
+                    case KEY_MODE:
                         break;
-                    case Lt_Pin:
+                    case KEY_LEFT:
                         break;
-                    case Rt_Pin:
+                    case KEY_RIGHT:
                         //Edit Alarm2
                         ClockState = EditAlarm2;
                         cpIndex = 0;
@@ -973,23 +978,23 @@ void ButtonHold(Button& b){
                 }
                 break;
             case EditClock:  //Edit Clock
-                switch (b.pinValue()){
-                    case Mode_Pin:
+                switch (b.keyValue()){
+                    case KEY_MODE:
                         lcd.noBlink();
                         lcd.noCursor();
                         ClockState = ShowClock;
                         buttonHoldPrevTime = millis();
                         bHoldButtonFlag = true;
                         break;
-                    case Lt_Pin:
-                    case Rt_Pin:
+                    case KEY_LEFT:
+                    case KEY_RIGHT:
                     default:
                         break;
                 }
                 break;
             case EditAlarm1:  //Edit Alarm1
-                switch (b.pinValue()){
-                    case Mode_Pin:
+                switch (b.keyValue()){
+                    case KEY_MODE:
                         lcd.noBlink();
                         lcd.noCursor();
                         ClockState = ShowClock;
@@ -997,15 +1002,15 @@ void ButtonHold(Button& b){
                         bHoldButtonFlag = true;
                         displayClock(true);
                         break;
-                    case Lt_Pin:
-                    case Rt_Pin:
+                    case KEY_LEFT:
+                    case KEY_RIGHT:
                     default:
                         break;
                 }
                 break;
             case EditAlarm2:  //Edit Alarm1
-                switch (b.pinValue()){
-                    case Mode_Pin:
+                switch (b.keyValue()){
+                    case KEY_MODE:
                         lcd.noBlink();
                         lcd.noCursor();
                         ClockState = ShowClock;
@@ -1013,8 +1018,8 @@ void ButtonHold(Button& b){
                         bHoldButtonFlag = true;
                         displayClock(true);
                         break;
-                    case Lt_Pin:
-                    case Rt_Pin:
+                    case KEY_LEFT:
+                    case KEY_RIGHT:
                     default:
                         break;
                 }
@@ -1024,7 +1029,7 @@ void ButtonHold(Button& b){
                 break;
         }
 
-        if (b.pinValue() == Switch_Pin) {
+        if (b.keyValue() == KEY_SWITCH_MAX) {
 //            ledMgr.beginSettingMaxValue();
 //            Serial.println("Setting max alarm LED light value started...");
 //            bHoldButtonFlag = true;
@@ -1243,14 +1248,8 @@ void setup() {
     CurrentTemperature = getTemperatureValue();
 
     /*  Button callback functions   */
-    LtKey.clickHandler(ButtonClick);
-    LtKey.holdHandler(ButtonHold,Button_Hold_Time);
-    RtKey.clickHandler(ButtonClick);
-    RtKey.holdHandler(ButtonHold,Button_Hold_Time);
-    ModeKey.clickHandler(ButtonClick);
-    ModeKey.holdHandler(ButtonHold,Button_Hold_Time);
-    SwitchKey.clickHandler(ButtonClick);
-    SwitchKey.holdHandler(ButtonHold,Button_Hold_Time);
+    MultiButton.clickHandler(ButtonClick);
+    MultiButton.holdHandler(ButtonHold,Button_Hold_Time);
 
     //Display the clock
     displayClock(true);
@@ -1371,10 +1370,7 @@ void loop() {
     prevShouldMoveOn = shouldMoveOn;
 
 
-    LtKey.process();
-    RtKey.process();
-    ModeKey.process();
-    SwitchKey.process();
+    MultiButton.process();
     byte activeAlarms = CheckAlarmStatus();  //Returns which alarms are activated    
     if (activeAlarms) {
         Serial.print("Active alarms: ");
