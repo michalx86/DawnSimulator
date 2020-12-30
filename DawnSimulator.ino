@@ -36,7 +36,7 @@
 /* ***********************************************************
  *                         Libraries                         *
  * ********************************************************* */
-/*
+/* User_Setup.h for TFT_eSPI
 #define ST7789_DRIVER
 #define TFT_SDA_READ
 #define TFT_WIDTH  240
@@ -55,10 +55,39 @@
 //#define TFT_BL   32  // LED back-light (required for M5Stack)
 
 #define TFT_INVERSION_ON
+
+//-------------------------------------------------------------------------------------------
+#define ILI9341_DRIVER
+#define TFT_WIDTH  240
+#define TFT_HEIGHT 320
+
+#define TFT_RGB_ORDER TFT_BGR  // Colour order Blue-Green-Red
+
+#define TFT_MISO 19  // Optional - needed for: a) reading screen data, b) reading touch
+#define TFT_MOSI 23
+#define TFT_SCLK 18
+#define TFT_CS   12 // or 5 or 4  - Chip select control pin - Optional: could be connected to GND - always selected (if touch is not used)
+#define TFT_DC   2  // Data Command control pin
+#define TFT_RST  -1  // Set TFT_RST to -1 if display RESET is connected to ESP32 board RST
+
+#define TOUCH_CS 13 //Default 21     // Chip select pin (T_CS) of touch screen
+
+//#define TFT_BL   32  // LED back-light (required for M5Stack)
+
+#define TFT_INVERSION_ON
+
+
+*/
+
+/* NexConfig.h (for Nextion
+#define DEBUG_SERIAL_ENABLE
+#define dbSerial Serial
+#define nexSerial Serial2
 */
 
 #include <SPI.h>
 #include <TFT_eSPI.h>       // Hardware-specific library
+#include "Nextion.h"
 
 #include <Esp.h>
 #include "SimpleAlarmClock.h"          // https://github.com/rmorenojr/SimpleAlarmClock
@@ -84,17 +113,25 @@
 // If you use one of above (in particular GPIO12) you might see:
 // "MD5 of file doas not match data in flash"
 
+/* ***********************************************************
+ *                    Serial port Pins                       *
+ * ********************************************************* */
+// Serial1
+//  Unusable
+// Serial2
+//  RX - 16
+//  TX - 17
+
 
 const int Led_CW_Pin = 14;      // PWM
 const int Led_WW_Pin = 27;      // PWM
-const int Led_G_Pin  = 16;      // PWM
-const int Led_R_Pin  = 17;      // PWM
-const int Led_B_Pin  = 25;      // PWM
+const int Led_G_Pin  = 4;       // PWM - If Nextion (serial2) were not used, we could attach it to PIN 16;
+const int Led_R_Pin  = 25;      // PWM
+const int Led_B_Pin  = 26;      // PWM
 //4 - OK for analog input
-const int MultiButton_Pin = 35;
+const int MultiButton_Pin = 34;
 
-const int LED_Pin = 2;         // digital pin for internal LED
-const int SQW_Pin = 26;        // Interrrupt pin
+const int SQW_Pin = 35;        // Interrrupt pin
 
 const unsigned EEPROM_SIZE = 2 * LED_LAST;
 const unsigned EEPROM_ADDR_MAX_LED_LEVEL = 0x0;
@@ -113,6 +150,8 @@ LedStripMgr ledMgr(Led_R_Pin, Led_G_Pin, Led_B_Pin, Led_WW_Pin, Led_CW_Pin);
  * ********************************************************* */
 TFT_eSPI tft = TFT_eSPI();  // Invoke custom library
 Lcd_I2C lcd;
+NexText t0 = NexText(0,1,"t0");
+
                                              
     const byte RTC_addr=0x68;                // I2C address of DS3231 RTC
     const byte EEPROM_addr=0x57;             // I2C address of AT24C32N EEPROM
@@ -639,22 +678,10 @@ void toggleShowAlarm(byte i=1){
     //otherwise do nothing
 }
 
-void toggleLED(bool ledON = true){
-    bool ledState;
-
-    ledState = digitalRead(LED_Pin);                //get the state of LED
-    if (ledON == true) {
-        digitalWrite(LED_Pin, !ledState);           //do the opposite
-    } else {
-        digitalWrite(LED_Pin, LOW);
-    }
-}
-
 
 void clearAlarms(void){
     //Clear alarm flags
     Clock.clearAlarms();
-    toggleLED(false);
     lcd.display();                     // Just in case it was off
 }
 
@@ -1187,9 +1214,13 @@ void setup() {
     // Get the start time
     RunTime = millis();
 
+    /*         Nextion Display          */
+    nexInit(500000); // 500000 is for Serial (debug dbSerial). Serial2 (nexSerial) will be initialized to 9600
+
     //Serial Monitor
-    Serial.begin(500000);
-    delay(500);
+    // Serial will be initialized by nexInit
+    //    Serial.begin(500000);
+
     Serial.println("");
     Serial.println("Setup Begin");
 
@@ -1209,8 +1240,6 @@ void setup() {
 
     /*         Pin Modes            */
 
-    pinMode(LED_Pin, OUTPUT);
-    digitalWrite(LED_Pin, HIGH);
     pinMode(SQW_Pin, INPUT);
 
     Color_t maxLedValue;
@@ -1236,6 +1265,7 @@ void setup() {
 
     /*          LCD Stuff           */
     lcd.init();                      // initialize the lcd 
+
 
     /*         Clock Stuff          */
     Clock.begin();
@@ -1377,7 +1407,7 @@ void loop() {
         Serial.println(activeAlarms);
         ledMgr.setDirAndProfile(1, LightProfileName::Alarm);
     }
-
+    //t0.setText("Test");
     delay(2);
 }
 
