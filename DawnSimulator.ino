@@ -84,6 +84,11 @@
 #define dbSerial Serial
 #define nexSerial Serial2
 */
+#include <WiFi.h>
+#include <WiFiClient.h>
+#include <WebServer.h>
+#include <ESPmDNS.h>
+#include "credentials.h"
 
 #include <SPI.h>
 #include <TFT_eSPI.h>       // Hardware-specific library
@@ -1206,6 +1211,61 @@ void printLedStatus(int percent, int dir) {
   lcd.write('%');
 }
 
+/* ***********************************************************
+ *                         Web Server                        *
+ * ********************************************************* */
+WebServer server(80);
+
+
+void handleRoot() {
+  server.send(200, "text/plain", "hello from esp8266!");
+}
+
+void handleNotFound() {
+  String message = "File Not Found\n\n";
+  message += "URI: ";
+  message += server.uri();
+  message += "\nMethod: ";
+  message += (server.method() == HTTP_GET) ? "GET" : "POST";
+  message += "\nArguments: ";
+  message += server.args();
+  message += "\n";
+  for (uint8_t i = 0; i < server.args(); i++) {
+    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
+  }
+  server.send(404, "text/plain", message);
+}
+void serverSetup(void) {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+  Serial.println("");
+
+  // Wait for connection
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.print("Connected to ");
+  Serial.println(ssid);
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+
+  if (MDNS.begin("esp32")) {
+    Serial.println("MDNS responder started");
+  }
+
+  server.on("/", handleRoot);
+
+  server.on("/inline", []() {
+    server.send(200, "text/plain", "this works as well");
+  });
+
+  server.onNotFound(handleNotFound);
+
+  server.begin();
+  Serial.println("HTTP server started");
+}
 
 /* ***********************************************************
  *                         Void Setup                        *
@@ -1215,7 +1275,7 @@ void setup() {
     RunTime = millis();
 
     /*         Nextion Display          */
-    nexInit(500000); // 500000 is for Serial (debug dbSerial). Serial2 (nexSerial) will be initialized to 9600
+    nexInit(500000,115200); // 500000 is for Serial (debug dbSerial).115200 is for Serial2 (nexSerial).
 
     //Serial Monitor
     // Serial will be initialized by nexInit
@@ -1307,6 +1367,8 @@ void setup() {
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
     tft.println("Simulator");
     tft.println("     :D");
+
+    serverSetup();
 
     //Debug code
     Serial.print("Register 0x0E = ");Serial.println(Clock.getCtrlRegister(), BIN);
@@ -1407,7 +1469,10 @@ void loop() {
         Serial.println(activeAlarms);
         ledMgr.setDirAndProfile(1, LightProfileName::Alarm);
     }
+
     //t0.setText("Test");
+    server.handleClient();
+
     delay(2);
 }
 
