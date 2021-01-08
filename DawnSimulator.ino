@@ -79,7 +79,7 @@
 
 */
 
-/* NexConfig.h (for Nextion
+/* NexConfig.h (for Nextion)
 #define DEBUG_SERIAL_ENABLE
 #define dbSerial Serial
 #define nexSerial Serial2
@@ -92,7 +92,7 @@
 
 #include <SPI.h>
 #include <TFT_eSPI.h>       // Hardware-specific library
-#include "Nextion.h"
+//#include "Nextion.h"
 
 #include <Esp.h>
 #include "SimpleAlarmClock.h"          // https://github.com/rmorenojr/SimpleAlarmClock
@@ -123,14 +123,14 @@
  * ********************************************************* */
 // Serial1
 //  Unusable
-// Serial2
+// Serial2  (e.g. for Nextion)
 //  RX - 16
 //  TX - 17
 
 
-const int Led_CW_Pin = 14;      // PWM
-const int Led_WW_Pin = 27;      // PWM
-const int Led_G_Pin  = 4;       // PWM - If Nextion (serial2) were not used, we could attach it to PIN 16;
+const int Led_CW_Pin = 27;      // PWM
+const int Led_WW_Pin = 16;      // PWM
+const int Led_G_Pin  = 17;      // PWM
 const int Led_R_Pin  = 25;      // PWM
 const int Led_B_Pin  = 26;      // PWM
 //4 - OK for analog input
@@ -155,7 +155,7 @@ LedStripMgr ledMgr(Led_R_Pin, Led_G_Pin, Led_B_Pin, Led_WW_Pin, Led_CW_Pin);
  * ********************************************************* */
 TFT_eSPI tft = TFT_eSPI();  // Invoke custom library
 Lcd_I2C lcd;
-NexText t0 = NexText(0,1,"t0");
+//NexText t0 = NexText(0,1,"t0");
 
                                              
     const byte RTC_addr=0x68;                // I2C address of DS3231 RTC
@@ -1275,11 +1275,10 @@ void setup() {
     RunTime = millis();
 
     /*         Nextion Display          */
-    nexInit(500000,115200); // 500000 is for Serial (debug dbSerial).115200 is for Serial2 (nexSerial).
+    //nexInit(500000,115200); // 500000 is for Serial (debug dbSerial).115200 is for Serial2 (nexSerial).
 
     //Serial Monitor
-    // Serial will be initialized by nexInit
-    //    Serial.begin(500000);
+    Serial.begin(500000);
 
     Serial.println("");
     Serial.println("Setup Begin");
