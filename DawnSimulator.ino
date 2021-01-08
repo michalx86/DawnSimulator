@@ -90,8 +90,10 @@
 #include <ESPmDNS.h>
 #include "credentials.h"
 
-#include <SPI.h>
-#include <TFT_eSPI.h>       // Hardware-specific library
+#include "LVGlue.h"
+#include "GUI.h"
+//#include <SPI.h>
+//#include <TFT_eSPI.h>       // Hardware-specific library
 //#include "Nextion.h"
 
 #include <Esp.h>
@@ -153,7 +155,7 @@ LedStripMgr ledMgr(Led_R_Pin, Led_G_Pin, Led_B_Pin, Led_WW_Pin, Led_CW_Pin);
  *                      Global Constants                     *
  *                    Hardware Definitions                   *
  * ********************************************************* */
-TFT_eSPI tft = TFT_eSPI();  // Invoke custom library
+//TFT_eSPI tft = TFT_eSPI();  // Invoke custom library
 Lcd_I2C lcd;
 //NexText t0 = NexText(0,1,"t0");
 
@@ -1292,8 +1294,8 @@ void setup() {
 
     EEPROM.begin(EEPROM_SIZE);
 
-    tft.init();
-    tft.fillScreen(TFT_BLACK);
+    //tft.init();
+    //tft.fillScreen(TFT_BLACK);
 
     ledMgr.init();
 
@@ -1356,7 +1358,7 @@ void setup() {
     attachInterrupt(digitalPinToInterrupt(SQW_Pin), AlarmIntrCallback, FALLING);
 
     // Set "cursor" at top left corner of display (0,0) and select font 4
-    tft.setCursor(0, 0, 4);
+    /*tft.setCursor(0, 0, 4);
     tft.setTextColor(TFT_RED, TFT_BLACK);
     tft.println("Hello!\n");
     tft.setTextColor(TFT_ORANGE, TFT_BLACK);
@@ -1365,9 +1367,13 @@ void setup() {
     tft.println("Dawn ");
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
     tft.println("Simulator");
-    tft.println("     :D");
+    tft.println("     :D");*/
 
     serverSetup();
+
+    setup_lvglue();
+    setup_gui();
+
 
     //Debug code
     Serial.print("Register 0x0E = ");Serial.println(Clock.getCtrlRegister(), BIN);
@@ -1460,8 +1466,8 @@ void loop() {
     }
     prevShouldMoveOn = shouldMoveOn;
 
-
     MultiButton.process();
+
     byte activeAlarms = CheckAlarmStatus();  //Returns which alarms are activated    
     if (activeAlarms) {
         Serial.print("Active alarms: ");
@@ -1471,6 +1477,12 @@ void loop() {
 
     //t0.setText("Test");
     server.handleClient();
+
+    {
+      unsigned long mills = millis();
+      loop_gui();
+      //log_d("GUI duration: %lu", millis() - mills);
+    }
 
     delay(2);
 }
