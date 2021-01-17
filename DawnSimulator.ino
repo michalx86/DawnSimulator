@@ -63,16 +63,15 @@
 
 #define TFT_RGB_ORDER TFT_BGR  // Colour order Blue-Green-Red
 
-#define TFT_MISO 19  // Optional - needed for: a) reading screen data, b) reading touch
-#define TFT_MOSI 23
 #define TFT_SCLK 18
-#define TFT_CS   12 // or 5 or 4  - Chip select control pin - Optional: could be connected to GND - always selected (if touch is not used)
-#define TFT_DC   2  // Data Command control pin
+#define TFT_MOSI 23
 #define TFT_RST  -1  // Set TFT_RST to -1 if display RESET is connected to ESP32 board RST
-
+#define TFT_DC   2  // Data Command control pin
+//#define TFT_BL   32  // LED back-light (required for M5Stack)
+#define TFT_MISO 19  // Optional - needed for: a) reading screen data, b) reading touch
+#define TFT_CS   12 // or 5 or 4  - Chip select control pin - Optional: could be connected to GND - always selected (if touch is not used)
 #define TOUCH_CS 13 //Default 21     // Chip select pin (T_CS) of touch screen
 
-//#define TFT_BL   32  // LED back-light (required for M5Stack)
 
 #define TFT_INVERSION_ON
 
