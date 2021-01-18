@@ -3,8 +3,10 @@
 #include <stdio.h>
 
 #define NUM_TILES 4
-static const int DATE_ROLLER_X = 3;
-static const int TIME_ROLLER_X = 210;
+static const int NUM_DOWS = 7;
+static const int DATE_ROLLER_X = 0;
+static const int TIME_ROLLER_X = 212;
+static const int ROLLER_DISTANCE_X = 2;
 static const int ROLLER_Y = 70;
 
 static const size_t NUM_ROLLER_YEARS = 40;
@@ -15,10 +17,11 @@ static const size_t NUM_ROLLER_MONTHS = 12;
 static const size_t NUM_ROLLER_DAYS = 31;
 static const size_t NUM_ROLLER_HOURS = 24;
 static const size_t NUM_ROLLER_MINUTES = 60;
-static const size_t ROLLER_MONTHS_LETTERS = DATE_ROLLER_X;
+static const size_t ROLLER_MONTHS_LETTERS = 3;
 static const size_t TWO_DIGITS = 2;
 
 static const char* month_name_arr[] = {"Sty", "Lut", "Mar", "Kwi", "Maj", "Cze", "Lip", "Sie", "Wrz", "Paz", "Lis", "Gru"};
+static const char* dow_name_arr[] = {"Pn", "Wt", "Sr", "Cz", "Pt", "So", "Nd" };
 
 static const lv_coord_t SCREEN_WIDTH = 320;
 static const lv_coord_t SCREEN_HEIGHT = 240;
@@ -45,14 +48,22 @@ static void slider_event_cb(lv_obj_t * slider, lv_event_t event)
     }
 }
 
-static void event_handler(lv_obj_t * obj, lv_event_t event)
+static void roller_event_handler(lv_obj_t * obj, lv_event_t event)
 {
     if(event == LV_EVENT_VALUE_CHANGED) {
         char buf[32];
         lv_roller_get_selected_str(obj, buf, sizeof(buf));
-        //log_d("Selected month: %s\n", buf);
+        lv_label_set_text_fmt(label, "%s\n", buf);
     }
 }
+
+static void switch_event_handler(lv_obj_t * obj, lv_event_t event)
+{
+    if(event == LV_EVENT_VALUE_CHANGED) {
+      lv_label_set_text_fmt(label, "%s\n", lv_switch_get_state(obj) ? "On" : "Off");
+    }
+}
+
 
 void set_style_black(lv_obj_t *obj) {
     lv_obj_reset_style_list(obj, LV_OBJ_PART_MAIN);
@@ -101,14 +112,14 @@ lv_obj_t* create_roller(lv_obj_t* par_obj, char* roller_arr) {
     lv_roller_set_options(roller, roller_arr, LV_ROLLER_MODE_INIFINITE);
 
     lv_roller_set_visible_row_count(roller, 4);
-    lv_obj_set_event_cb(roller, event_handler);
+    lv_obj_set_event_cb(roller, roller_event_handler);
   return roller;
 }
 
 lv_obj_t* create_label(lv_obj_t* par_obj, char* text, lv_obj_t* align_to_obj) {
     lv_obj_t * label = lv_label_create(par_obj, NULL);
     lv_label_set_text(label, text);
-    lv_obj_align(label, align_to_obj, LV_ALIGN_OUT_RIGHT_MID, 0, 0);
+    lv_obj_align(label, align_to_obj, LV_ALIGN_OUT_RIGHT_MID, ROLLER_DISTANCE_X, 0);
   return label;
 }
 
@@ -117,25 +128,25 @@ void create_date_rollers(lv_obj_t* par_obj, size_t x, size_t y) {
     lv_obj_t *year_roller = create_roller(par_obj, roller_years_arr);
     lv_obj_set_pos(year_roller, x, y);
 
-    lv_obj_t* dash1_label = create_label(par_obj, " - ", year_roller);
+    lv_obj_t* dash1_label = create_label(par_obj, "-", year_roller);
 
     lv_obj_t *month_roller = create_roller(par_obj, roller_months_arr);
-    lv_obj_align(month_roller, dash1_label, LV_ALIGN_OUT_RIGHT_MID, 0, 0);
+    lv_obj_align(month_roller, dash1_label, LV_ALIGN_OUT_RIGHT_MID, 1, 0);
 
-    lv_obj_t* dash2_label = create_label(par_obj, " - ", month_roller);
+    lv_obj_t* dash2_label = create_label(par_obj, "-", month_roller);
 
     lv_obj_t *day_roller = create_roller(par_obj, roller_days_arr);
-    lv_obj_align(day_roller, dash2_label, LV_ALIGN_OUT_RIGHT_MID, 0, 0);
+    lv_obj_align(day_roller, dash2_label, LV_ALIGN_OUT_RIGHT_MID, 1, 0);
 }
 
 void create_time_rollers(lv_obj_t* par_obj, size_t x, size_t y) {
     lv_obj_t *hour_roller = create_roller(par_obj, roller_hours_arr);
     lv_obj_set_pos(hour_roller, x, y);
 
-    lv_obj_t * colon_label = create_label(par_obj, " : ", hour_roller);
+    lv_obj_t * colon_label = create_label(par_obj, ":", hour_roller);
 
     lv_obj_t *minute_roller = create_roller(par_obj, roller_minutes_arr);
-    lv_obj_align(minute_roller, colon_label, LV_ALIGN_OUT_RIGHT_MID, 0, 0);
+    lv_obj_align(minute_roller, colon_label, LV_ALIGN_OUT_RIGHT_MID, ROLLER_DISTANCE_X, 0);
 }
 
 void create_date_time_set_view(lv_obj_t* par_obj) {
@@ -150,24 +161,38 @@ void create_date_time_set_view(lv_obj_t* par_obj) {
   create_time_rollers(par_obj, TIME_ROLLER_X, ROLLER_Y);
 }
 
-static void switch_event_handler(lv_obj_t * obj, lv_event_t event)
-{
-    if(event == LV_EVENT_VALUE_CHANGED) {
-        //printf("State: %s\n", lv_switch_get_state(obj) ? "On" : "Off");
-    }
+lv_obj_t* create_switch(lv_obj_t* par_obj) {
+    lv_obj_t *sw = lv_switch_create(par_obj, NULL);
+    lv_obj_set_event_cb(sw, switch_event_handler);
+  return sw;
 }
-
-
 
 void create_alarm_set_view(lv_obj_t* par_obj, int alarm_no) {
   lv_obj_t * title = create_title(par_obj);
   lv_label_set_text_fmt(title, "Alarm %d", alarm_no + 1);
   lv_obj_align(title, NULL, LV_ALIGN_IN_TOP_LEFT, 0, 0);
 
-    lv_obj_t *sw1 = lv_switch_create(par_obj, NULL);
-    lv_obj_align(sw1, title, LV_ALIGN_OUT_RIGHT_MID, 40, 0);
-    lv_obj_set_event_cb(sw1, switch_event_handler);
+  lv_obj_t *sw1 = create_switch(par_obj);
+  lv_obj_align(sw1, title, LV_ALIGN_OUT_RIGHT_MID, 40, 0);
 
+  // Day-of-Week switches
+  lv_obj_t* dow_switches[NUM_DOWS];
+  lv_obj_t* dow_labels[NUM_DOWS];
+  for (int i = 0; i < NUM_DOWS; i++) {
+    dow_switches[i] = create_switch(par_obj);
+  }
+  lv_obj_set_pos(dow_switches[0], 40, 55);
+  for (int i = 1; i < 5; i++) {
+    lv_obj_align(dow_switches[i], dow_switches[i-1], LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+  }
+  lv_obj_align(dow_switches[5], dow_switches[0], LV_ALIGN_OUT_RIGHT_MID, 40, 0);
+  lv_obj_align(dow_switches[6], dow_switches[5], LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+
+  for (int i = 0; i < NUM_DOWS; i++) {
+    dow_labels[i] = lv_label_create(par_obj, NULL);
+    lv_label_set_text_fmt(dow_labels[i], "%s", dow_name_arr[i]);
+    lv_obj_align(dow_labels[i], dow_switches[i], LV_ALIGN_OUT_LEFT_MID, -5, 0);
+  }
 
   // Time
   create_time_rollers(par_obj, TIME_ROLLER_X, ROLLER_Y);
@@ -184,8 +209,7 @@ lv_obj_t* create_bottom_tile(lv_obj_t* tileview, int tile_no) {
 
 void create_bottom_tileview(void)
 {
-  static lv_point_t valid_pos[NUM_TILES] = { { 0, 0 }, { 1, 0 }, { 2, 0 }, {
-      DATE_ROLLER_X, 0 } };
+  static lv_point_t valid_pos[NUM_TILES] = { { 0, 0 }, { 1, 0 }, { 2, 0 }, {3, 0 } };
     lv_obj_t *tileview;
     tileview = lv_tileview_create(lv_scr_act(), NULL);
     lv_obj_set_size(tileview, SCREEN_WIDTH, SCREEN_HEIGHT);
@@ -194,7 +218,7 @@ void create_bottom_tileview(void)
     lv_tileview_set_edge_flash(tileview, true);
 
     /* Populate tiles */
-    lv_obj_t * tiles[4];
+    lv_obj_t * tiles[NUM_TILES];
     for (int i = 0; i < NUM_TILES; i++) {
         tiles[i] = create_bottom_tile(tileview, i);
     }
@@ -202,7 +226,7 @@ void create_bottom_tileview(void)
     create_date_time_set_view(tiles[0]);
     create_status_view(tiles[1]);
     create_alarm_set_view(tiles[2],0);
-  create_alarm_set_view(tiles[DATE_ROLLER_X], 1);
+    create_alarm_set_view(tiles[3], 1);
 
     lv_tileview_set_tile_act(tileview, 1, 0, false);
 }
