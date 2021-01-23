@@ -1,8 +1,8 @@
 #include "catch.hpp"
-#include "../LightProfile.h"
+#include "../lib/LightProfile/src/LightProfile.h"
 
-#define ALARM_SAMPLES_NUM 10
-#define ALARM_SAMPLE_LAST 9
+#define ALARM_SAMPLES_NUM 2000
+#define ALARM_SAMPLE_LAST 1999
 #define SWITCH_SAMPLES_NUM 120
 #define SWITCH_SAMPLE_LAST 119
 #define SAMPLE_LAST_VALUE 8191
@@ -22,7 +22,7 @@ SCENARIO("check LightProfile")
         }
         WHEN("Sample 0 is required")
         {
-            auto value = lp[0];
+            auto value = lp(0, 0);
             THEN("It should be 0")
             {
                 CHECK(value == 0);
@@ -30,7 +30,7 @@ SCENARIO("check LightProfile")
         }
         WHEN("Sample ALARM_SAMPLE_LAST is required")
         {
-            auto value = lp[ALARM_SAMPLE_LAST];
+            auto value = lp(0, ALARM_SAMPLE_LAST);
             THEN("It should be SAMPLE_LAST_VALUE")
             {
                 CHECK(value == SAMPLE_LAST_VALUE);
@@ -51,7 +51,7 @@ SCENARIO("check LightProfile")
 
         WHEN("Sample 0 is required")
         {
-            auto value = lp[0];
+            auto value = lp(0, 0);
             THEN("It should be 0")
             {
                 CHECK(value == 0);
@@ -59,7 +59,7 @@ SCENARIO("check LightProfile")
         }
         WHEN("Sample SWITCH_SAMPLE_LAST is required")
         {
-            auto value = lp[SWITCH_SAMPLE_LAST];
+            auto value = lp(0, SWITCH_SAMPLE_LAST);
             THEN("It should be SAMPLE_LAST_VALUE")
             {
                 CHECK(value == SAMPLE_LAST_VALUE);

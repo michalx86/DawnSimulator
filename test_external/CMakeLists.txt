@@ -9,8 +9,7 @@ find_package(GTest REQUIRED)
 message("GTest_INCLUDE_DIRS = ${GTest_INCLUDE_DIRS}")
 
 set(SRC_LIST
-    ../LightProfile.cpp
-    ../LightState.cpp
+    ../lib/LightProfile/src/LightProfile.cpp
 )
 
 add_library(${PROJECT_NAME}-lib STATIC ${SRC_LIST})
@@ -22,7 +21,6 @@ target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}-lib)
 set(TEST_SRC_LIST
     testMain.cpp
     LightProfileTests.cpp
-    LightStateTests.cpp
 )
 add_executable(${PROJECT_NAME}-ut ${TEST_SRC_LIST})
 target_compile_options(${PROJECT_NAME}-ut PUBLIC -g -O0 -Wall -Wextra -pedantic -Werror -Wno-unused-parameter -Wno-unused-variable)

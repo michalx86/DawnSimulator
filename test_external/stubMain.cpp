@@ -1,5 +1,5 @@
 #include <iostream>
-#include "../LightProfile.h"
+#include "../lib/LightProfile/src/LightProfile.h"
 
 int main()
 {
