@@ -92,12 +92,36 @@ void create_top_light_color_control_view(void) {
 
 void create_status_view(lv_obj_t* par_obj) {
 
-    lv_obj_t * label1 = lv_label_create(par_obj, NULL);
-    lv_obj_reset_style_list(label1, LV_OBJ_PART_MAIN);
-    lv_obj_set_style_local_text_font(label1, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_THEME_DEFAULT_FONT_TITLE);
-    lv_obj_set_style_local_text_color(label1, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_RED);
-    lv_label_set_text_fmt(label1, "12:59 27%cC",127);
-    lv_obj_align(label1, NULL, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_t * date_label = lv_label_create(par_obj, NULL);
+    lv_label_set_text(date_label, "2021-01-23");
+    lv_obj_reset_style_list(date_label, LV_OBJ_PART_MAIN);
+    lv_obj_set_style_local_text_font(date_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_THEME_DEFAULT_FONT_SUBTITLE);
+    lv_obj_set_style_local_text_color(date_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_SILVER);
+
+    lv_obj_align(date_label, NULL, LV_ALIGN_IN_TOP_LEFT, 0, 0);
+
+    lv_obj_t * led_intensity_label = lv_label_create(par_obj, NULL);
+    lv_obj_reset_style_list(led_intensity_label, LV_OBJ_PART_MAIN);
+    lv_obj_set_style_local_text_font(led_intensity_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_THEME_DEFAULT_FONT_SUBTITLE);
+    lv_label_set_text(led_intensity_label, "100%");
+    lv_obj_align(led_intensity_label, NULL, LV_ALIGN_IN_TOP_RIGHT, 0, 0);
+
+    lv_obj_t * time_label = lv_label_create(par_obj, NULL);
+    lv_obj_reset_style_list(time_label, LV_OBJ_PART_MAIN);
+    lv_obj_set_style_local_text_font(time_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_THEME_DEFAULT_FONT_TITLE);
+    // LV_COLOR_MAKE(0xFF, 0x80, 0x00) - light orange - almost yellow
+    // LV_COLOR_MAKE(0xDF, 0x50, 0x00) - orange
+    // LV_COLOR_MAKE(0xCF, 0x40, 0x00) - darg orange - almost red
+    lv_obj_set_style_local_text_color(time_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_MAKE(0xCF, 0x40, 0x00));
+    lv_label_set_text_fmt(time_label, "12:59");
+    lv_obj_align(time_label, NULL, LV_ALIGN_IN_LEFT_MID, 0, 0);
+
+    lv_obj_t * temperature_label = lv_label_create(par_obj, NULL);
+    lv_obj_reset_style_list(temperature_label, LV_OBJ_PART_MAIN);
+    lv_obj_set_style_local_text_font(temperature_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_THEME_DEFAULT_FONT_TITLE);
+    lv_obj_set_style_local_text_color(temperature_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_TEAL);
+    lv_label_set_text_fmt(temperature_label, "27%cC",127);
+    lv_obj_align(temperature_label, NULL, LV_ALIGN_IN_RIGHT_MID, 0, 0);
 }
 
 lv_obj_t* create_title(lv_obj_t* par_obj) {

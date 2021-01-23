@@ -1,7 +1,9 @@
 #ifndef LightComposite_h
 #define LightComposite_h
 
+#include <assert.h>
 #include "LightProfile.h"
+
 
 typedef struct {
   uint16_t& operator[](size_t idx) {assert(idx < LED_LAST); return component[idx];}

@@ -78,6 +78,8 @@
 
 */
 
+#include <Arduino.h>
+
 /* NexConfig.h (for Nextion)
 #define DEBUG_SERIAL_ENABLE
 #define dbSerial Serial
@@ -147,6 +149,14 @@ const unsigned AUTO_SWITCH_OFF_TIMEOUT = 3 * 60 * 60 * 1000;
 
 unsigned lightLevelAtBrightening = 0;
 boolean prevShouldMoveOn = false;
+
+float getTemperatureValue();
+String dow2Str(byte bDow);
+String p2Digits(int numValue);
+void printLedStatus(int percent, int dir);
+void printAlarmIndicators(byte alarmEnabledStatus, byte enabledDows1, byte enabledDows2);
+void LedTaskLoop( void * parameter );
+
 
 LedStripMgr ledMgr(Led_R_Pin, Led_G_Pin, Led_B_Pin, Led_WW_Pin, Led_CW_Pin);
 

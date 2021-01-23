@@ -1,7 +1,6 @@
 #include <stddef.h>
 #include <assert.h>
 #include "LightProfile.h"
-#include <Esp.h>
 
 typedef struct {
   float low;
