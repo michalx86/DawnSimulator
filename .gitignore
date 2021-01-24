@@ -5,3 +5,7 @@
 .vscode/ipch
 src/credentials.h
 AccessToken.txt
+#
+test_external/build/*
+# But not this file
+!test_external/build/README

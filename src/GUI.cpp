@@ -2,6 +2,8 @@
 
 #include <stdio.h>
 
+#define DEFAULT_TXT_COLOR LV_COLOR_SILVER
+
 #define NUM_TILES 4
 static const int NUM_DOWS = 7;
 static const int DATE_ROLLER_X = 0;
@@ -90,45 +92,40 @@ void create_top_light_color_control_view(void) {
     lv_obj_set_pos(label, 30, 30);
 }
 
+lv_obj_t* create_custom_label(lv_obj_t* par_obj, lv_font_t* font, lv_color_t color) {
+    lv_obj_t* labl = lv_label_create(par_obj, NULL);
+    lv_obj_reset_style_list(labl, LV_OBJ_PART_MAIN);
+    lv_obj_set_style_local_text_font(labl, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, font);
+    lv_obj_set_style_local_text_color(labl, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, color);
+    return labl;
+}
+
 void create_status_view(lv_obj_t* par_obj) {
-
-    lv_obj_t * date_label = lv_label_create(par_obj, NULL);
+    lv_obj_t * date_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_SUBTITLE, DEFAULT_TXT_COLOR);
     lv_label_set_text(date_label, "2021-01-23");
-    lv_obj_reset_style_list(date_label, LV_OBJ_PART_MAIN);
-    lv_obj_set_style_local_text_font(date_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_THEME_DEFAULT_FONT_SUBTITLE);
-    lv_obj_set_style_local_text_color(date_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_SILVER);
-
     lv_obj_align(date_label, NULL, LV_ALIGN_IN_TOP_LEFT, 0, 0);
 
-    lv_obj_t * led_intensity_label = lv_label_create(par_obj, NULL);
-    lv_obj_reset_style_list(led_intensity_label, LV_OBJ_PART_MAIN);
-    lv_obj_set_style_local_text_font(led_intensity_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_THEME_DEFAULT_FONT_SUBTITLE);
+    lv_obj_t * led_intensity_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_SUBTITLE, DEFAULT_TXT_COLOR);
     lv_label_set_text(led_intensity_label, "100%");
     lv_obj_align(led_intensity_label, NULL, LV_ALIGN_IN_TOP_RIGHT, 0, 0);
 
-    lv_obj_t * time_label = lv_label_create(par_obj, NULL);
-    lv_obj_reset_style_list(time_label, LV_OBJ_PART_MAIN);
-    lv_obj_set_style_local_text_font(time_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_THEME_DEFAULT_FONT_TITLE);
     // LV_COLOR_MAKE(0xFF, 0x80, 0x00) - light orange - almost yellow
     // LV_COLOR_MAKE(0xDF, 0x50, 0x00) - orange
     // LV_COLOR_MAKE(0xCF, 0x40, 0x00) - darg orange - almost red
-    lv_obj_set_style_local_text_color(time_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_MAKE(0xCF, 0x40, 0x00));
+    lv_obj_t * time_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_TITLE, LV_COLOR_MAKE(0xCF, 0x40, 0x00));
     lv_label_set_text_fmt(time_label, "12:59");
     lv_obj_align(time_label, NULL, LV_ALIGN_IN_LEFT_MID, 0, 0);
 
-    lv_obj_t * temperature_label = lv_label_create(par_obj, NULL);
-    lv_obj_reset_style_list(temperature_label, LV_OBJ_PART_MAIN);
-    lv_obj_set_style_local_text_font(temperature_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_THEME_DEFAULT_FONT_TITLE);
-    lv_obj_set_style_local_text_color(temperature_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_TEAL);
+    lv_obj_t * temperature_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_TITLE, LV_COLOR_TEAL);
     lv_label_set_text_fmt(temperature_label, "27%cC",127);
     lv_obj_align(temperature_label, NULL, LV_ALIGN_IN_RIGHT_MID, 0, 0);
 }
 
 lv_obj_t* create_title(lv_obj_t* par_obj) {
-    lv_obj_t * label = lv_label_create(par_obj, NULL);
-    lv_obj_reset_style_list(label, LV_OBJ_PART_MAIN);
-    lv_obj_add_style(label, LV_OBJ_PART_MAIN, &style_obj_title);
-    return label;
+    lv_obj_t * labl = lv_label_create(par_obj, NULL);
+    lv_obj_reset_style_list(labl, LV_OBJ_PART_MAIN);
+    lv_obj_add_style(labl, LV_OBJ_PART_MAIN, &style_obj_title);
+    return labl;
 }
 
 lv_obj_t* create_roller(lv_obj_t* par_obj, char* roller_arr) {
@@ -140,11 +137,11 @@ lv_obj_t* create_roller(lv_obj_t* par_obj, char* roller_arr) {
   return roller;
 }
 
-lv_obj_t* create_label(lv_obj_t* par_obj, char* text, lv_obj_t* align_to_obj) {
-    lv_obj_t * label = lv_label_create(par_obj, NULL);
-    lv_label_set_text(label, text);
-    lv_obj_align(label, align_to_obj, LV_ALIGN_OUT_RIGHT_MID, ROLLER_DISTANCE_X, 0);
-  return label;
+lv_obj_t* create_label(lv_obj_t* par_obj, const char* text, const lv_obj_t* align_to_obj) {
+    lv_obj_t * labl = lv_label_create(par_obj, NULL);
+    lv_label_set_text(labl, text);
+    lv_obj_align(labl, align_to_obj, LV_ALIGN_OUT_RIGHT_MID, ROLLER_DISTANCE_X, 0);
+  return labl;
 }
 
 
@@ -257,7 +254,7 @@ void create_bottom_tileview(void)
 
 void generate_roller_text(char* text, bool is_4_digit, unsigned start, unsigned num) {
   unsigned last = start + num;
-  char* format = "%02u";
+  const char* format = "%02u";
   unsigned num_digits = 2;
   if (is_4_digit) {
     format = "%04u";

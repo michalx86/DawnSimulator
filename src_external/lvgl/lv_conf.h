@@ -53,6 +53,9 @@
 /* Dot Per Inch: used to initialize default sizes.
  * E.g. a button with width = LV_DPI / 2 -> half inch wide
  * (Not so important, you can adjust it to modify default sizes and spaces)*/
+// MP: Theoretical formula is:
+// sqrt(LV_HOR_RES_MAX^2 + LV_VER_RES_MAX^2) / Display_Diagonal_In_Inches
+// sqrt(240^2 + 320^2)/2.4 = 166
 #define LV_DPI              130     /*[px]*/
 
 /* The the real width of the display changes some default values:
