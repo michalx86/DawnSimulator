@@ -4,8 +4,10 @@
 
 #define DEFAULT_TXT_COLOR LV_COLOR_SILVER
 
-#define NUM_TILES 4
-static const int NUM_DOWS = 7;
+#define NUM_TILES   4
+#define NUM_DOWS    7
+#define NUM_ALARMS  2
+
 static const int DATE_ROLLER_X = 0;
 static const int TIME_ROLLER_X = 212;
 static const int ROLLER_DISTANCE_X = 2;
@@ -41,6 +43,17 @@ static char* roller_minutes_arr = NULL;
 static lv_obj_t * label;
 static lv_style_t style_obj_black;
 static lv_style_t style_obj_title;
+static lv_style_t style_pressed;
+
+static lv_obj_t* alarm_dow_status_buttons[NUM_DOWS][NUM_ALARMS];
+static lv_obj_t* alarm_time_labels[NUM_ALARMS];
+
+
+LV_IMG_DECLARE(arrow_yellow_img);
+LV_IMG_DECLARE(arrow_blue_img);
+LV_IMG_DECLARE(sun_img);
+LV_IMG_DECLARE(stars_img);
+
 
 static void slider_event_cb(lv_obj_t * slider, lv_event_t event)
 {
@@ -99,26 +112,76 @@ lv_obj_t* create_custom_label(lv_obj_t* par_obj, lv_font_t* font, lv_color_t col
     lv_obj_set_style_local_text_color(labl, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, color);
     return labl;
 }
+lv_obj_t* create_arrow_img(lv_obj_t* par_obj, lv_obj_t* align_obj, const void * img_data) {
+    lv_obj_t * img = lv_img_create(par_obj, NULL);
+    lv_img_set_src(img, img_data);
+    lv_obj_align(img, align_obj, LV_ALIGN_OUT_LEFT_MID, -3, 0);
+    return img;
+}
+
+lv_obj_t* create_checkable_button(lv_obj_t* par_obj) {
+    /*Create an Image button*/
+    lv_obj_t * img_button = lv_imgbtn_create(par_obj, NULL);
+    lv_imgbtn_set_src(img_button, LV_BTN_STATE_RELEASED, &stars_img);
+    lv_imgbtn_set_src(img_button, LV_BTN_STATE_PRESSED, &stars_img);
+    lv_imgbtn_set_src(img_button, LV_BTN_STATE_CHECKED_RELEASED, &sun_img);
+    lv_imgbtn_set_src(img_button, LV_BTN_STATE_CHECKED_PRESSED, &sun_img);
+    lv_imgbtn_set_checkable(img_button, true);
+    lv_obj_add_style(img_button, LV_IMGBTN_PART_MAIN, &style_pressed);
+    lv_obj_align(img_button, NULL, LV_ALIGN_CENTER, 0, -40);
+    return img_button;
+}
 
 void create_status_view(lv_obj_t* par_obj) {
     lv_obj_t * date_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_SUBTITLE, DEFAULT_TXT_COLOR);
     lv_label_set_text(date_label, "2021-01-23");
-    lv_obj_align(date_label, NULL, LV_ALIGN_IN_TOP_LEFT, 0, 0);
+    lv_obj_align(date_label, NULL, LV_ALIGN_IN_TOP_LEFT, 10, 0);
 
     lv_obj_t * led_intensity_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_SUBTITLE, DEFAULT_TXT_COLOR);
     lv_label_set_text(led_intensity_label, "100%");
-    lv_obj_align(led_intensity_label, NULL, LV_ALIGN_IN_TOP_RIGHT, 0, 0);
+    lv_obj_align(led_intensity_label, NULL, LV_ALIGN_IN_TOP_RIGHT, -10, 0);
+
+    lv_obj_t * arrow_yellow_widget = create_arrow_img(par_obj, led_intensity_label, &arrow_yellow_img);
+    lv_obj_t * arrow_blue_widget = create_arrow_img(par_obj, led_intensity_label, &arrow_blue_img);
+    lv_obj_set_hidden(arrow_blue_widget, true);
 
     // LV_COLOR_MAKE(0xFF, 0x80, 0x00) - light orange - almost yellow
     // LV_COLOR_MAKE(0xDF, 0x50, 0x00) - orange
     // LV_COLOR_MAKE(0xCF, 0x40, 0x00) - darg orange - almost red
     lv_obj_t * time_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_TITLE, LV_COLOR_MAKE(0xCF, 0x40, 0x00));
     lv_label_set_text_fmt(time_label, "12:59");
-    lv_obj_align(time_label, NULL, LV_ALIGN_IN_LEFT_MID, 0, 0);
+    lv_obj_set_pos(time_label, 20, 60);
 
     lv_obj_t * temperature_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_TITLE, LV_COLOR_TEAL);
     lv_label_set_text_fmt(temperature_label, "27%cC",127);
-    lv_obj_align(temperature_label, NULL, LV_ALIGN_IN_RIGHT_MID, 0, 0);
+    lv_obj_set_pos(temperature_label, 190, 60);
+
+    // Alarm status table
+    for (int j = 0; j < NUM_ALARMS; j++) {
+        alarm_time_labels[j] = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_NORMAL, DEFAULT_TXT_COLOR);
+        for (int i = 0; i < NUM_DOWS; i++) {
+            alarm_dow_status_buttons[i][j] = create_checkable_button(par_obj);
+        }
+    }
+    lv_obj_set_pos(alarm_dow_status_buttons[0][1], 60, 0);
+    lv_obj_align_y(alarm_dow_status_buttons[0][1], par_obj, LV_ALIGN_IN_BOTTOM_MID, -16);
+    lv_obj_align(alarm_dow_status_buttons[0][0], alarm_dow_status_buttons[0][1], LV_ALIGN_OUT_TOP_MID, 0, -3);
+
+    for (int j = 0; j < NUM_ALARMS; j++) {
+        lv_label_set_text_fmt(alarm_time_labels[j], "%d:54", j*20+4);
+        lv_obj_align(alarm_time_labels[j], alarm_dow_status_buttons[0][j], LV_ALIGN_OUT_LEFT_MID, -5, 0);
+        for (int i = 1; i < NUM_DOWS; i++) {
+            lv_obj_align(alarm_dow_status_buttons[i][j], alarm_dow_status_buttons[i-1][j], LV_ALIGN_OUT_RIGHT_MID, 3, 0);
+        }
+    }
+
+    lv_obj_t* dow_labels[NUM_DOWS];
+
+    for (int i = 0; i < NUM_DOWS; i++) {
+      dow_labels[i] = lv_label_create(par_obj, NULL);
+      lv_label_set_text_fmt(dow_labels[i], "%s", dow_name_arr[i]);
+      lv_obj_align(dow_labels[i], alarm_dow_status_buttons[i][0], LV_ALIGN_OUT_TOP_MID, 0, 0);
+    }
 }
 
 lv_obj_t* create_title(lv_obj_t* par_obj) {
@@ -311,6 +374,11 @@ void GUI(void)
   // lv_style_set_bg_color(&style_obj_title, LV_STATE_DEFAULT, LV_COLOR_BLACK);
   lv_style_set_text_font(&style_obj_title, LV_STATE_DEFAULT, LV_THEME_DEFAULT_FONT_TITLE);
   lv_style_set_text_color(&style_obj_title, LV_STATE_DEFAULT, LV_COLOR_WHITE);
+
+  /*Darken the button when pressed*/
+  lv_style_init(&style_pressed);
+  lv_style_set_image_recolor_opa(&style_pressed, LV_STATE_PRESSED, LV_OPA_30);
+  lv_style_set_image_recolor(&style_pressed, LV_STATE_PRESSED, LV_COLOR_BLACK);
 
   set_style_black(lv_scr_act());
 
