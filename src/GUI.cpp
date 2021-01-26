@@ -58,15 +58,53 @@ LV_IMG_DECLARE(stars_img);
 static void slider_event_cb(lv_obj_t * slider, lv_event_t event)
 {
     if(event == LV_EVENT_VALUE_CHANGED) {
-        /*Refresh the text*/
-        lv_label_set_text_fmt(label, "%d", lv_slider_get_value(slider));
+        if(lv_slider_get_type(slider) == LV_SLIDER_TYPE_NORMAL) {
+            static char buf[16];
+            lv_snprintf(buf, sizeof(buf), "%d", lv_slider_get_value(slider));
+            lv_obj_set_style_local_value_str(slider, LV_SLIDER_PART_KNOB, LV_STATE_DEFAULT, buf);
+        }
+    }
+}
+
+static void cpicker_event_cb(lv_obj_t * cpicker, lv_event_t event)
+{
+    if ((event == LV_EVENT_VALUE_CHANGED) || (event == LV_EVENT_PRESSING)) {
+        static lv_cpicker_color_mode_t old_mode = -1;
+        lv_cpicker_color_mode_t mode = lv_cpicker_get_color_mode(cpicker);
+        if (event == LV_EVENT_PRESSING) {
+            if (mode == old_mode) {
+                return;
+            } else {
+                old_mode = mode;
+            }
+        }
+
+        uint16_t value = 0;
+        switch (mode) {
+        case LV_CPICKER_COLOR_MODE_HUE:
+            value = lv_cpicker_get_hue(cpicker);
+            break;
+        case LV_CPICKER_COLOR_MODE_SATURATION:
+            value = lv_cpicker_get_saturation(cpicker);
+            break;
+        case LV_CPICKER_COLOR_MODE_VALUE:
+            value = lv_cpicker_get_value(cpicker);
+            break;
+        default:
+            break;
+        }
+        static char buf[8];
+        lv_snprintf(buf, sizeof(buf), "%d", value);
+        lv_cpicker_ext_t * ext = (lv_cpicker_ext_t*)lv_obj_get_ext_attr(cpicker);
+        uint32_t part_type = (ext->type == LV_CPICKER_TYPE_DISC)? LV_CPICKER_PART_MAIN : LV_CPICKER_PART_KNOB;
+        lv_obj_set_style_local_value_str(cpicker, part_type, LV_STATE_DEFAULT, buf);
     }
 }
 
 static void roller_event_handler(lv_obj_t * obj, lv_event_t event)
 {
     if(event == LV_EVENT_VALUE_CHANGED) {
-        char buf[32];
+        static char buf[32];
         lv_roller_get_selected_str(obj, buf, sizeof(buf));
         lv_label_set_text_fmt(label, "%s\n", buf);
     }
@@ -87,18 +125,52 @@ void set_style_black(lv_obj_t *obj) {
 
 void create_top_light_color_control_view(void) {
     lv_obj_t * brightness_slider = lv_slider_create(lv_scr_act(), NULL);
-    lv_obj_set_pos(brightness_slider, SCREEN_MARGIN + 10, SCREEN_MARGIN);
+    lv_obj_set_pos(brightness_slider, SCREEN_MARGIN + 20, SCREEN_MARGIN);
     lv_obj_set_size(brightness_slider, SLIDER_WIDTH, SLIDER_LENGTH);
-    lv_obj_set_event_cb(brightness_slider, slider_event_cb);         /*Assign an event function*/
+    lv_obj_set_event_cb(brightness_slider, slider_event_cb);
+    lv_obj_set_style_local_bg_opa(brightness_slider, LV_SLIDER_PART_INDIC, LV_STATE_DEFAULT, LV_OPA_COVER);
+    lv_obj_set_style_local_bg_color(brightness_slider, LV_SLIDER_PART_INDIC, LV_STATE_DEFAULT, LV_COLOR_WHITE);
+    lv_obj_set_style_local_border_width(brightness_slider, LV_SLIDER_PART_KNOB, LV_STATE_DEFAULT, 2);
+    lv_obj_set_style_local_border_opa(brightness_slider, LV_SLIDER_PART_KNOB, LV_STATE_DEFAULT, LV_OPA_COVER);
+    lv_obj_set_style_local_border_color(brightness_slider, LV_SLIDER_PART_KNOB, LV_STATE_DEFAULT, LV_COLOR_GRAY);
+    lv_obj_set_style_local_value_color(brightness_slider, LV_SLIDER_PART_KNOB, LV_STATE_DEFAULT, DEFAULT_TXT_COLOR);  // text color
+    lv_obj_set_style_local_value_ofs_x(brightness_slider, LV_SLIDER_PART_KNOB, LV_STATE_FOCUSED, -30);
+    lv_obj_set_style_local_value_opa(brightness_slider, LV_SLIDER_PART_KNOB, LV_STATE_DEFAULT, LV_OPA_TRANSP);
+    lv_obj_set_style_local_value_opa(brightness_slider, LV_SLIDER_PART_KNOB, LV_STATE_FOCUSED, LV_OPA_COVER);
+    lv_obj_set_style_local_transition_time(brightness_slider, LV_SLIDER_PART_KNOB, LV_STATE_DEFAULT, 300);
+    lv_obj_set_style_local_transition_prop_5(brightness_slider, LV_SLIDER_PART_KNOB, LV_STATE_DEFAULT, LV_STYLE_VALUE_OFS_X);
+    lv_obj_set_style_local_transition_prop_6(brightness_slider, LV_SLIDER_PART_KNOB, LV_STATE_DEFAULT, LV_STYLE_VALUE_OPA);
+
+    lv_obj_t * hsv_cpicker = lv_cpicker_create(lv_scr_act(), NULL);
+    lv_obj_set_pos(hsv_cpicker, SCREEN_WIDTH - (SLIDER_LENGTH + HSV_CPICKER_SIZE)/2 - SCREEN_MARGIN, SCREEN_HEIGHT - HSV_CPICKER_SIZE- SCREEN_MARGIN);
+    lv_obj_set_size(hsv_cpicker, 160, 160);
+    lv_obj_set_event_cb(hsv_cpicker, cpicker_event_cb);
+    lv_obj_set_style_local_value_color(hsv_cpicker, LV_CPICKER_PART_MAIN, LV_STATE_DEFAULT, DEFAULT_TXT_COLOR);  // text color
+    lv_obj_set_style_local_value_ofs_x(hsv_cpicker, LV_CPICKER_PART_MAIN, LV_STATE_DEFAULT, -70);
+    lv_obj_set_style_local_value_ofs_y(hsv_cpicker, LV_CPICKER_PART_MAIN, LV_STATE_DEFAULT, 70);
+    lv_obj_set_style_local_value_opa(hsv_cpicker, LV_CPICKER_PART_MAIN, LV_STATE_DEFAULT, LV_OPA_TRANSP);
+    lv_obj_set_style_local_value_opa(hsv_cpicker, LV_CPICKER_PART_MAIN, LV_STATE_FOCUSED, LV_OPA_COVER);
+    lv_obj_set_style_local_transition_time(hsv_cpicker, LV_CPICKER_PART_MAIN, LV_STATE_DEFAULT, 300);
+    lv_obj_set_style_local_transition_prop_6(hsv_cpicker, LV_CPICKER_PART_MAIN, LV_STATE_DEFAULT, LV_STYLE_VALUE_OPA);
 
     lv_obj_t * light_temp_cpicker = lv_cpicker_create(lv_scr_act(), NULL);
     lv_cpicker_set_type(light_temp_cpicker, LV_CPICKER_TYPE_RECT);
     lv_obj_set_pos(light_temp_cpicker, SCREEN_WIDTH - SLIDER_LENGTH - SCREEN_MARGIN, SCREEN_MARGIN);
     lv_obj_set_size(light_temp_cpicker, SLIDER_LENGTH, SLIDER_WIDTH);
+    lv_cpicker_set_color(light_temp_cpicker, LV_COLOR_MAKE(0xFF, 0xD5, 0x00));
+    lv_cpicker_set_color_mode(light_temp_cpicker, LV_CPICKER_COLOR_MODE_SATURATION);
+    lv_cpicker_set_color_mode_fixed(light_temp_cpicker, true);
+    lv_obj_set_event_cb(light_temp_cpicker, cpicker_event_cb);
+    lv_obj_set_style_local_value_color(light_temp_cpicker, LV_CPICKER_PART_KNOB, LV_STATE_DEFAULT, DEFAULT_TXT_COLOR);  // text color
+    lv_obj_set_style_local_value_ofs_x(light_temp_cpicker, LV_CPICKER_PART_KNOB, LV_STATE_FOCUSED, -19);
+    lv_obj_set_style_local_value_ofs_y(light_temp_cpicker, LV_CPICKER_PART_KNOB, LV_STATE_FOCUSED, 25);
+    lv_obj_set_style_local_value_opa(light_temp_cpicker, LV_CPICKER_PART_KNOB, LV_STATE_DEFAULT, LV_OPA_TRANSP);
+    lv_obj_set_style_local_value_opa(light_temp_cpicker, LV_CPICKER_PART_KNOB, LV_STATE_FOCUSED, LV_OPA_COVER);
+    lv_obj_set_style_local_transition_time(light_temp_cpicker, LV_CPICKER_PART_KNOB, LV_STATE_DEFAULT, 300);
+    lv_obj_set_style_local_transition_prop_4(light_temp_cpicker, LV_CPICKER_PART_KNOB, LV_STATE_DEFAULT, LV_STYLE_VALUE_OFS_X);
+    lv_obj_set_style_local_transition_prop_5(light_temp_cpicker, LV_CPICKER_PART_KNOB, LV_STATE_DEFAULT, LV_STYLE_VALUE_OFS_Y);
+    lv_obj_set_style_local_transition_prop_6(light_temp_cpicker, LV_CPICKER_PART_KNOB, LV_STATE_DEFAULT, LV_STYLE_VALUE_OPA);
 
-    lv_obj_t * cpicker = lv_cpicker_create(lv_scr_act(), NULL);
-    lv_obj_set_pos(cpicker, SCREEN_WIDTH - (SLIDER_LENGTH + HSV_CPICKER_SIZE)/2 - SCREEN_MARGIN, SCREEN_HEIGHT - HSV_CPICKER_SIZE- SCREEN_MARGIN);
-    lv_obj_set_size(cpicker, 160, 160);
 
     label = lv_label_create(lv_scr_act(), NULL);
     lv_label_set_text(label, "0");
@@ -385,6 +457,7 @@ void GUI(void)
   create_top_light_color_control_view();
   create_bottom_tileview();
 }
+
 
 
 void setup_gui() {
