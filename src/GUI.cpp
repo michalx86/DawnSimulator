@@ -41,6 +41,7 @@ static char* roller_hours_arr = NULL;
 static char* roller_minutes_arr = NULL;
 
 static lv_obj_t * label;
+
 static lv_style_t style_obj_black;
 static lv_style_t style_obj_title;
 static lv_style_t style_pressed;
@@ -48,11 +49,19 @@ static lv_style_t style_pressed;
 static lv_obj_t* alarm_dow_status_buttons[NUM_DOWS][NUM_ALARMS];
 static lv_obj_t* alarm_time_labels[NUM_ALARMS];
 
-
 LV_IMG_DECLARE(arrow_yellow_img);
 LV_IMG_DECLARE(arrow_blue_img);
 LV_IMG_DECLARE(sun_img);
 LV_IMG_DECLARE(stars_img);
+
+// Status View widgets:
+static lv_obj_t * date_label = NULL;
+static lv_obj_t * temperature_label = NULL;
+
+// Date Time View widgets:
+lv_obj_t *year_roller = NULL;
+lv_obj_t *month_roller =  NULL;
+lv_obj_t *day_roller = NULL;
 
 
 static void slider_event_cb(lv_obj_t * slider, lv_event_t event)
@@ -69,9 +78,9 @@ static void slider_event_cb(lv_obj_t * slider, lv_event_t event)
 static void cpicker_event_cb(lv_obj_t * cpicker, lv_event_t event)
 {
     if ((event == LV_EVENT_VALUE_CHANGED) || (event == LV_EVENT_PRESSING)) {
-        static lv_cpicker_color_mode_t old_mode = -1;
         lv_cpicker_color_mode_t mode = lv_cpicker_get_color_mode(cpicker);
         if (event == LV_EVENT_PRESSING) {
+            static lv_cpicker_color_mode_t old_mode = -1;
             if (mode == old_mode) {
                 return;
             } else {
@@ -205,8 +214,7 @@ lv_obj_t* create_checkable_button(lv_obj_t* par_obj) {
 }
 
 void create_status_view(lv_obj_t* par_obj) {
-    lv_obj_t * date_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_SUBTITLE, DEFAULT_TXT_COLOR);
-    lv_label_set_text(date_label, "2021-01-23");
+    date_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_SUBTITLE, DEFAULT_TXT_COLOR);
     lv_obj_align(date_label, NULL, LV_ALIGN_IN_TOP_LEFT, 10, 0);
 
     lv_obj_t * led_intensity_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_SUBTITLE, DEFAULT_TXT_COLOR);
@@ -224,9 +232,8 @@ void create_status_view(lv_obj_t* par_obj) {
     lv_label_set_text_fmt(time_label, "12:59");
     lv_obj_set_pos(time_label, 20, 60);
 
-    lv_obj_t * temperature_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_TITLE, LV_COLOR_TEAL);
-    lv_label_set_text_fmt(temperature_label, "27%cC",127);
-    lv_obj_set_pos(temperature_label, 190, 60);
+    temperature_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_TITLE, LV_COLOR_TEAL);
+    lv_obj_set_pos(temperature_label, 170, 60);
 
     // Alarm status table
     for (int j = 0; j < NUM_ALARMS; j++) {
@@ -279,19 +286,18 @@ lv_obj_t* create_label(lv_obj_t* par_obj, const char* text, const lv_obj_t* alig
   return labl;
 }
 
-
 void create_date_rollers(lv_obj_t* par_obj, size_t x, size_t y) {
-    lv_obj_t *year_roller = create_roller(par_obj, roller_years_arr);
+    year_roller = create_roller(par_obj, roller_years_arr);
     lv_obj_set_pos(year_roller, x, y);
 
     lv_obj_t* dash1_label = create_label(par_obj, "-", year_roller);
 
-    lv_obj_t *month_roller = create_roller(par_obj, roller_months_arr);
+    month_roller = create_roller(par_obj, roller_months_arr);
     lv_obj_align(month_roller, dash1_label, LV_ALIGN_OUT_RIGHT_MID, 1, 0);
 
     lv_obj_t* dash2_label = create_label(par_obj, "-", month_roller);
 
-    lv_obj_t *day_roller = create_roller(par_obj, roller_days_arr);
+    day_roller = create_roller(par_obj, roller_days_arr);
     lv_obj_align(day_roller, dash2_label, LV_ALIGN_OUT_RIGHT_MID, 1, 0);
 }
 
@@ -459,6 +465,20 @@ void GUI(void)
 }
 
 
+void gui_set_temperature(float temperature) {
+  static char buf[5];
+  snprintf(buf, sizeof(buf), "%.1f", temperature);
+    lv_label_set_text_fmt(temperature_label, "%s%cC", buf, 127);
+}
+
+void gui_set_date(uint16_t year, uint16_t month, uint16_t day) {
+  lv_label_set_text_fmt(date_label, "%04d-%02d-%02d", year, month, day);
+  if ((year >= START_ROLLER_YEAR) && (year < START_ROLLER_YEAR + NUM_ROLLER_YEARS)) {
+    lv_roller_set_selected(year_roller, year - START_ROLLER_YEAR, true);
+  }
+  // month_roller
+  // day_roller
+}
 
 void setup_gui() {
   GUI();

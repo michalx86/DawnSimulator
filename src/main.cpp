@@ -168,7 +168,7 @@ LedStripMgr ledMgr(Led_R_Pin, Led_G_Pin, Led_B_Pin, Led_WW_Pin, Led_CW_Pin);
 Lcd_I2C lcd;
 //NexText t0 = NexText(0,1,"t0");
 
-                                             
+
     const byte RTC_addr=0x68;                // I2C address of DS3231 RTC
     const byte EEPROM_addr=0x57;             // I2C address of AT24C32N EEPROM
     const bool INTCN = true;                 // allows SQW pin to be monitored
@@ -234,7 +234,7 @@ Lcd_I2C lcd;
     byte HourType = 0;                // 0=AM/PM, 1=24hour - used in display alarm - to be deleted
     float CurrentTemperature;         // Maybe move as static variable under displayClock function
     unsigned long RunTime = 0;             // Used to track time between get temperature value
-    unsigned long buttonHoldPrevTime = 0;  // Used to track button hold times 
+    unsigned long buttonHoldPrevTime = 0;  // Used to track button hold times
     unsigned long AlarmRunTime = 0;
     unsigned long lastClockLedPercentShownTime = 0;
     DateTime PreviousTime;            // Maybe move as static variable under displayClock function
@@ -263,6 +263,9 @@ void displayClock(bool changeFlag=false) {
    *   changeFlag - true forces display refresh
    *              - false does nothing
    * ***************************************************** */
+    bool temperatureChanged = changeFlag;
+    bool dateChanged = changeFlag;
+
     DateTime NowTime;            //create DateTime struct from Library
     NowTime = Clock.read();      // get the latest clock values
     // CheckFlag Section:
@@ -274,16 +277,20 @@ void displayClock(bool changeFlag=false) {
         float PreviousTemperature = CurrentTemperature;
         CurrentTemperature = getTemperatureValue();
         RunTime = mills;
-        if (CurrentTemperature != PreviousTemperature) {changeFlag = true;}
+        if (CurrentTemperature != PreviousTemperature) {
+            temperatureChanged = true;
+        }
     }
 
     // Check for Time change
     if (NowTime.Hour != PreviousTime.Hour){ changeFlag = true; }
     if (NowTime.Minute != PreviousTime.Minute){ changeFlag = true; }
-    if (NowTime.ClockMode != PreviousTime.ClockMode) { changeFlag = true; }
-    if (NowTime.Day != PreviousTime.Day) { changeFlag = true; }
-    if (NowTime.Month != PreviousTime.Month) { changeFlag = true; }
-    if (NowTime.Year != PreviousTime.Year) { changeFlag = true; }
+    if ((NowTime.Day != PreviousTime.Day) ||
+        (NowTime.Month != PreviousTime.Month) ||
+        (NowTime.Year != PreviousTime.Year))
+    {
+        dateChanged = true;
+    }
 
     int percent = 0;
     if (shouldShowPercent) {
@@ -310,10 +317,11 @@ void displayClock(bool changeFlag=false) {
         int i = 2000 + NowTime.Year;
         lcd.print(i);
         lcd.print(" ");
+
         lcd.print(String(CurrentTemperature,1));  // converts float to string
                                                   // with 1 decimal place
         lcd.print((char)223);                     // prints the degree symbol
-        
+
         // Second Row  hh:mm dt PWSCPSN
         lcd.setCursor(0,1);                       //Column, Row
         lcd.print(p2Digits(NowTime.Hour));
@@ -332,6 +340,9 @@ void displayClock(bool changeFlag=false) {
 
         PreviousTime = Clock.read();
     }
+
+    if (temperatureChanged) gui_set_temperature(CurrentTemperature);
+    if (dateChanged) gui_set_date(2000 + NowTime.Year, NowTime.Month, NowTime.Day);
 }
 
 void displayAlarm(byte index=1, bool changeFlag=false) {
@@ -568,7 +579,7 @@ void changeEnabledDows(byte i, byte dow) {
      *    i = 1 Alarm1
      *      = 2 Alarm2
      */
-  
+
     if ((i==1)||(i=2)){
         AlarmTime alarm = Clock.readAlarm(i);
 
@@ -576,31 +587,6 @@ void changeEnabledDows(byte i, byte dow) {
 
         Serial.print("changeEnabledDows: ");
         Serial.println(alarm.EnabledDows,BIN);
-        Clock.setAlarm(alarm,i);
-    }//TODO: Error checking. Would return 0 for fail and 1 for OK
-}
-
-void changeAlarmMode(byte i=1, bool increment = true){
-    /*  Change AlarmMode to 0=Daily, 1=Weekday, 2=Weekend, 3=Once
-     *    i = 1 Alarm1
-     *      = 2 Alarm2
-     */
-    if ((i==1)||(i=2)){
-        // Instantiates object as struct AlarmTIme
-        AlarmTime alarm = Clock.readAlarm(i);
-        int AlarmMode = alarm.AlarmMode;;
-
-        if (increment == true) {
-            AlarmMode += 1;
-            AlarmMode %= 4;
-        } else {
-            AlarmMode -= 1;
-            AlarmMode %= 4;
-        }
-        
-        if (AlarmMode < 0) { AlarmMode = 3; }
-        //Serial.print("AlarmMode = ");Serial.println(AlarmMode,BIN);
-        alarm.AlarmMode = byte(AlarmMode);
         Clock.setAlarm(alarm,i);
     }//TODO: Error checking. Would return 0 for fail and 1 for OK
 }
@@ -639,7 +625,7 @@ void changeDay(byte i=0, bool increment = true){
             break;
         case 2:
             DaysMax = 28;
-            if ((Year % 4 == 0) && (Year % 100 != 0) || ( Year % 400 == 0)){
+            if ((Year % 4 == 0) && ((Year % 100 != 0) || ( Year % 400 == 0))){
                 //those are the conditions to have a leap year
                 DaysMax = 29;
             }
@@ -870,12 +856,12 @@ void ButtonClick(Button& b){
                         cpIndex %= 9;
                         break;
                     case KEY_LEFT:
-                        // Decrements value 
+                        // Decrements value
                         shouldIncrement = false;
                     case KEY_RIGHT:
                         // Increments value
                         // Second Row hh:mm PWSCPSN
-                        //             0  1 2345678 
+                        //             0  1 2345678
                         switch (cpIndex){
                             case 0:
                                 //edit Hours
@@ -942,7 +928,7 @@ void ButtonHold(Button& b){
             break;
     }
 
-    // To ignore back to back button hold? 
+    // To ignore back to back button hold?
     if ((millis()-buttonHoldPrevTime) > 2000){
         switch (ClockState){
             case PowerLoss:
@@ -1164,7 +1150,7 @@ void printAlarmIndicators(byte alarmEnabledStatus, byte enabledDows1, byte enabl
        2 - Alarm 2 enabled
        3 - Both alarms enabled
      */
-    static char dowLetters[] = {'-', 'P', 'W',  'S',  'C',  'P',  'S',  'N'}; 
+    static char dowLetters[] = {'-', 'P', 'W',  'S',  'C',  'P',  'S',  'N'};
     for (byte i = 2; i <=8; i++) {
         byte enabledStatus = alarmEnabledStatus;
         byte dow = (i > 7)? 1 : i;
@@ -1204,7 +1190,7 @@ void printAlarmIndicators(byte alarmEnabledStatus, byte enabledDows1, byte enabl
 void printLedStatus(int percent, int dir) {
   lcd.print("  ");
 
-  if ((dir == 0)) { 
+  if ((dir == 0)) {
     lcd.print(' ');
   } else if (dir == 1) {
     lcd.write(LCD_CHAR_UP_ARROW);
@@ -1334,7 +1320,7 @@ void setup() {
     printColorValue(maxLedValue);
 
     /*          LCD Stuff           */
-    lcd.init();                      // initialize the lcd 
+    lcd.init();                      // initialize the lcd
 
 
     /*         Clock Stuff          */
@@ -1350,9 +1336,6 @@ void setup() {
     /*  Button callback functions   */
     MultiButton.clickHandler(ButtonClick);
     MultiButton.holdHandler(ButtonHold,Button_Hold_Time);
-
-    //Display the clock
-    displayClock(true);
 
     xTaskCreatePinnedToCore(
       LedTaskLoop,
@@ -1382,6 +1365,9 @@ void setup() {
 
     setup_lvglue();
     setup_gui();
+
+    //Display the clock
+    displayClock(true);
 
 
     //Debug code
@@ -1477,7 +1463,7 @@ void loop() {
 
     MultiButton.process();
 
-    byte activeAlarms = CheckAlarmStatus();  //Returns which alarms are activated    
+    byte activeAlarms = CheckAlarmStatus();  //Returns which alarms are activated
     if (activeAlarms) {
         Serial.print("Active alarms: ");
         Serial.println(activeAlarms);
@@ -1488,9 +1474,9 @@ void loop() {
     server.handleClient();
 
     {
-      unsigned long mills = millis();
+      //unsigned long loop_gui_start_mills = millis();
       loop_gui();
-      //log_d("GUI duration: %lu", millis() - mills);
+      //log_d("GUI duration: %lu", millis() - loop_gui_start_mills);
     }
 
     delay(2);

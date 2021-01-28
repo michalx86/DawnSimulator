@@ -1,13 +1,90 @@
 #include "SimpleAlarmClock.h"
 #include <Wire.h>
+
+#define MOCK
+#ifdef MOCK
+static DateTime dateTimeMock;
+static AlarmTime alarmMock;
+
+SimpleAlarmClock::SimpleAlarmClock(byte _rtc_Address, byte _eeprom_Address, bool alarmIntEnabled)
+{
+    dateTimeMock.Second = 0;
+    dateTimeMock.Minute = 0;
+
+    dateTimeMock.Hour = 12;
+    dateTimeMock.Dow = 2;       // 1-7  2=Monday (Day Of Week)
+    dateTimeMock.Day = 1;       // calendar dd
+    dateTimeMock.Month = 1;     // calendar mm
+    dateTimeMock.Year = 22;     // calendar yyy, note 2000 must be addded
+    dateTimeMock.ClockMode = 2; // 0-2; 0=AM, 1=PM, 2=24hour
+
+    alarmMock.Second = 0;    // 0-59 = 6 bits
+    alarmMock.Minute = 0;    // 0-59 = 6 bits
+    alarmMock.Hour = 6;      // 0-23 = 5 bits
+    alarmMock.AlarmMode = 0; // 0=Daily, 1=Weekday, 2=Weekend, 3=Once
+    alarmMock.ClockMode = 2; // 0-2; 0=AM, 1=PM, 2=24hour
+    alarmMock.Enabled = false;
+}
+void SimpleAlarmClock::begin() {}
+DateTime SimpleAlarmClock::read() { return dateTimeMock; }
+byte SimpleAlarmClock::write(const DateTime &_dateTime)
+{
+    dateTimeMock = _dateTime;
+    return 1;
+}
+AlarmTime SimpleAlarmClock::readAlarm(byte alarmSelected) { return alarmMock; }
+byte SimpleAlarmClock::setAlarm(const AlarmTime &_alarm, byte alarmSelected)
+{
+    alarmMock = _alarm;
+    return 1;
+}
+byte SimpleAlarmClock::snoozeAlarm(byte alarmSelected, byte SnoozeTime) { return 0; }
+void SimpleAlarmClock::armAlarm(byte alarmSelected, bool Enable) {}
+void SimpleAlarmClock::clearAlarms() {}
+byte SimpleAlarmClock::alarmStatus() { return 0; }
+byte SimpleAlarmClock::getCtrlRegister() { return 0; }
+void SimpleAlarmClock::setEnableOscillator(bool Enable) {}
+void SimpleAlarmClock::setBatteryBackedSquareWave(bool Enable) {}
+void SimpleAlarmClock::setConvertTemperature() {}
+byte SimpleAlarmClock::setRateSelect(byte Data) { return 0; }
+void SimpleAlarmClock::setInterruptCtrl(bool Enable) {}
+byte SimpleAlarmClock::getStatusRegister() { return 0; }
+bool SimpleAlarmClock::getOSFStatus() {return 0;}
+byte SimpleAlarmClock::clearOSFStatus() { return 0; }
+bool SimpleAlarmClock::getEN32kHz() {return 0;}
+byte SimpleAlarmClock::setEN32kHz(bool Enable) { return 0; }
+bool SimpleAlarmClock::busy() {return 0;}
+byte SimpleAlarmClock::flaggedAlarms() { return 0; }
+byte SimpleAlarmClock::getTemperature() { return 0; }
+float SimpleAlarmClock::getTemperatureFloat() { return 22.4f; }
+void SimpleAlarmClock::toggleClockMode() {}
+byte SimpleAlarmClock::calcDow(byte mm, byte dd, uint16_t yyyy) { return 1; }
+void SimpleAlarmClock::resetClock(void) {}
+void SimpleAlarmClock::resetAlarm(byte alarmSelected)
+{
+    alarmMock.Second = 0;    // 0-59 = 6 bits
+    alarmMock.Minute = 0;    // 0-59 = 6 bits
+    alarmMock.Hour = 6;      // 0-23 = 5 bits
+    alarmMock.AlarmMode = 0; // 0=Daily, 1=Weekday, 2=Weekend, 3=Once
+    alarmMock.ClockMode = 2; // 0-2; 0=AM, 1=PM, 2=24hour
+    alarmMock.Enabled = false;
+}
+byte SimpleAlarmClock::readByte(byte Address, byte &dataBuffer) { return 0; }
+byte SimpleAlarmClock::readBytes(byte Address, byte dataBuffer[], byte Length) { return 0; }
+byte SimpleAlarmClock::getAgingOffset(void) { return 0; }
+byte SimpleAlarmClock::setAgingOffset(int changeValue) { return 0; }
+byte SimpleAlarmClock::readMem(byte address) { return 0; }
+byte SimpleAlarmClock::readMem(byte address, byte dataBuffer[], byte n) { return 0; }
+byte SimpleAlarmClock::writeEeprom(byte address, byte dataBuffer) { return 0; }
+#else
 /** **********************************************************************
  * SimpleAlarmClock Library - cpp file
- * A library for the ZS-042 Module that has a DS3231 RTC and AT24C32 EEPROM. 
+ * A library for the ZS-042 Module that has a DS3231 RTC and AT24C32 EEPROM.
  * @author Ricardo Moreno
  * @version 1.0.0
  * @copyright Ricardo Moreno
  * @license MIT License
- ************************************************************************ 
+ ************************************************************************
  *  Versions:
  *  11/25/2018 v1.0.0  Initial version/release
  *
@@ -476,13 +553,13 @@ AlarmTime SimpleAlarmClock::readRtcAlarm(byte alarmSelected){
     byte _byteValue[4];
     byte _bValue;
     byte _address;
-    
+
     // Alarm1 uses 4 registers Starting at 0x07
     // Alarm2 uses 3 registers Starting at 0x0b
-    // To keep them even, Alarm2 will start at register 0x0a    
+    // To keep them even, Alarm2 will start at register 0x0a
     if (alarmSelected == 1){ _address = 0x07; } else { _address = 0x0a; }
     readBytes(_address, _byteValue, 4);
-    // clear out Alarm2 zero byte 
+    // clear out Alarm2 zero byte
     if (alarmSelected == 2){_byteValue[0] = 0;}
     // Seconds
     alarm_i.Second = bcd2bin(_byteValue[0] & 0B01111111);
@@ -732,7 +809,7 @@ byte SimpleAlarmClock::nextAlarmDay(byte _AlarmMode, byte _ClockMode, byte Enabl
                for (int i = 0; i <= 6 ; i++) {
                    dayReturn = currentTime.Dow + i;
                    if (dayReturn > 7){dayReturn -= 7;}
-                   if ((1 << dayReturn) & EnabledDows) 
+                   if ((1 << dayReturn) & EnabledDows)
                        break;
                }
                Serial.print("Next Dow - from today:");
@@ -774,7 +851,7 @@ byte SimpleAlarmClock::nextAlarmDay(byte _AlarmMode, byte _ClockMode, byte Enabl
                for (int i = 1; i <= 7 ; i++) {
                    dayReturn = currentTime.Dow + i;
                    if (dayReturn > 7){dayReturn -= 7;}
-                   if ((1 << dayReturn) & EnabledDows) 
+                   if ((1 << dayReturn) & EnabledDows)
                        break;
                }
                Serial.print("Next Dow - from tomorrow: ");
@@ -1074,11 +1151,11 @@ byte SimpleAlarmClock::setRtcAlarm(const AlarmTime &alarm_i, byte alarmSelected)
         //A1M4/A2M4 = 0, DY/DT = 1
         _byteValue[2] |= (1<<6);
     } */
-    // Now that even Daily 
+    // Now that even Daily
     //A1M4/A2M4 = 0, DY/DT = 1
     _byteValue[2] |= (1<<6);
-    
-    // Begin writing the array to I2C 
+
+    // Begin writing the array to I2C
     if (alarmSelected == 1) { _address = 0x08; } else { _address = 0x0b;}
     writeBytes(_address, _byteValue, 3);
 
@@ -1225,7 +1302,7 @@ byte SimpleAlarmClock::setMemAlarm(const AlarmTime &alarm_i, byte alarmSelected)
     }
     //Set the Alarm Enabled bit
     writeMem(0x07, _byteValue[0]);
-    
+
     setAlarmEnabledDows(alarm_i.EnabledDows, alarmSelected);
 
     return 1;  // for future error return codes
@@ -1816,9 +1893,9 @@ byte SimpleAlarmClock::getAgingOffset(void){
      * (two’s complement) Check Datasheet to adjust this properly.
      ****************************************************************** */
     byte _byteValue = 0;
-    
+
     readByte(0x10, _byteValue);
-    return (_byteValue);    
+    return (_byteValue);
 }
 
 byte SimpleAlarmClock::setAgingOffset(int changeValue){
@@ -1864,6 +1941,8 @@ byte SimpleAlarmClock::setAgingOffset(int changeValue){
     }
     return (returnValue);
 }
+
+#endif // MOCK
 
 /** **********************************************************************
    Binary-Coded Decimal (bcd) and Binary (bin) format routines:
