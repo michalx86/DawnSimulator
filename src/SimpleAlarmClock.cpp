@@ -5,12 +5,12 @@
 #ifdef MOCK
 static DateTime dateTimeMock;
 static AlarmTime alarmMock;
+static uint32_t cnt = 0;
 
 SimpleAlarmClock::SimpleAlarmClock(byte _rtc_Address, byte _eeprom_Address, bool alarmIntEnabled)
 {
     dateTimeMock.Second = 0;
     dateTimeMock.Minute = 0;
-
     dateTimeMock.Hour = 12;
     dateTimeMock.Dow = 2;       // 1-7  2=Monday (Day Of Week)
     dateTimeMock.Day = 1;       // calendar dd
@@ -26,7 +26,34 @@ SimpleAlarmClock::SimpleAlarmClock(byte _rtc_Address, byte _eeprom_Address, bool
     alarmMock.Enabled = false;
 }
 void SimpleAlarmClock::begin() {}
-DateTime SimpleAlarmClock::read() { return dateTimeMock; }
+DateTime SimpleAlarmClock::read() {
+static uint32_t cntL2 = 0;
+
+    uint32_t tick = (cnt++ % 50) == 9;
+    if (tick)
+    {
+        uint32_t optIdx = cntL2++ % 3;
+        switch (optIdx)
+        {
+        case 0:
+            dateTimeMock.Day = (dateTimeMock.Day < 31) ? ++dateTimeMock.Day : 1;
+            break;
+        case 1:
+            dateTimeMock.Month = (dateTimeMock.Month < 12) ? ++dateTimeMock.Month : 1;
+            break;
+        case 2:
+            dateTimeMock.Year = (dateTimeMock.Year < 60) ? ++dateTimeMock.Year : 21;
+            break;
+        default:
+            break;
+            /*dateTimeMock.Dow = 2;       // 1-7  2=Monday (Day Of Week)
+            dateTimeMock.Day = 1;       // calendar dd
+            dateTimeMock.Month = 1;     // calendar mm
+            dateTimeMock.Year = 22;     // calendar yyy, note 2000 must be addded*/
+        }
+    }
+    return dateTimeMock;
+}
 byte SimpleAlarmClock::write(const DateTime &_dateTime)
 {
     dateTimeMock = _dateTime;

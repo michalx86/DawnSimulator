@@ -157,6 +157,8 @@ void printLedStatus(int percent, int dir);
 void printAlarmIndicators(byte alarmEnabledStatus, byte enabledDows1, byte enabledDows2);
 void LedTaskLoop( void * parameter );
 
+void changeYearN(byte i, DateTime NowTime, int Year);
+
 
 LedStripMgr ledMgr(Led_R_Pin, Led_G_Pin, Led_B_Pin, Led_WW_Pin, Led_CW_Pin);
 
@@ -282,6 +284,16 @@ void displayClock(bool changeFlag=false) {
         }
     }
 
+    uint16_t year = gui_get_year() - 2000;
+    if (year != PreviousTime.Year) {
+        changeYearN(clock0, NowTime, year);
+        dateChanged = true;
+    }
+
+    if (dateChanged) {
+        NowTime = Clock.read();
+    }
+
     // Check for Time change
     if (NowTime.Hour != PreviousTime.Hour){ changeFlag = true; }
     if (NowTime.Minute != PreviousTime.Minute){ changeFlag = true; }
@@ -291,6 +303,8 @@ void displayClock(bool changeFlag=false) {
     {
         dateChanged = true;
     }
+
+    PreviousTime = NowTime;
 
     int percent = 0;
     if (shouldShowPercent) {
@@ -306,39 +320,11 @@ void displayClock(bool changeFlag=false) {
 
     //Update Display - Only change display if change is detected
     if (changeFlag == true){
-        //lcd.clear();
-
-        // First Row dd/mm/yyyy ##.#°
-        lcd.setCursor(0,0);                       // Column, Row
-        lcd.print(p2Digits(NowTime.Day));
-        lcd.print("/");
-        lcd.print(p2Digits(NowTime.Month));
-        lcd.print("/");
-        int i = 2000 + NowTime.Year;
-        lcd.print(i);
-        lcd.print(" ");
-
-        lcd.print(String(CurrentTemperature,1));  // converts float to string
-                                                  // with 1 decimal place
-        lcd.print((char)223);                     // prints the degree symbol
-
-        // Second Row  hh:mm dt PWSCPSN
-        lcd.setCursor(0,1);                       //Column, Row
-        lcd.print(p2Digits(NowTime.Hour));
-        lcd.print(":");
-        lcd.print(p2Digits(NowTime.Minute));
-        lcd.print(" ");
-        lcd.print(dow2Str(NowTime.Dow));          // Integer Day of the week
-                                                  // convert to String
-        lcd.print(" ");
-
         if (shouldShowPercent) {
           printLedStatus(percent, ledMgr.getDir());
         } else {
           printAlarmIndicators(Clock.alarmStatus(),  Clock.readAlarm(alarm1).EnabledDows, Clock.readAlarm(alarm2).EnabledDows);
         }
-
-        PreviousTime = Clock.read();
     }
 
     if (temperatureChanged) gui_set_temperature(CurrentTemperature);
@@ -648,6 +634,13 @@ void changeDay(byte i=0, bool increment = true){
     Clock.write(NowTime);
 }
 
+void changeYearN(byte i, DateTime NowTime, int Year) {
+    if (Year < 18) { Year = 199; }
+    if (Year > 199){ Year = 18; }
+    NowTime.Year = byte(Year);
+    Clock.write(NowTime);
+}
+
 void changeYear(byte i=0, bool increment = true){
     DateTime NowTime;
     NowTime = Clock.read();
@@ -681,33 +674,9 @@ void toggleShowAlarm(byte i=1){
 }
 
 
-void clearAlarms(void){
+void clearAlarms(void) {
     //Clear alarm flags
     Clock.clearAlarms();
-    lcd.display();                     // Just in case it was off
-}
-
-void editClock(byte i=0){
-    //First  Row  mm/dd/yyyy ##.#°
-    //Second Row  hh:mm AM DT PWSCPSN
-    byte cursorPositions[][2] = {{1,0},{4,0},{9,0},{1,1},{4,1}};
-    //lcd.setCursor(Column, Row);
-    //Serial.print("editclock position = "); Serial.println(i);
-    lcd.setCursor(cursorPositions[i][0],cursorPositions[i][1]);
-    lcd.cursor();
-    lcd.blink();
-}
-
-void editAlarm(byte i=0){
-    /* Alarm 1      ON
-       hh:mm    PWSCPSN*/
-    //Note valid i values are 0-3
-    //lcd.setCursor(Column, Row);
-    byte cursorPositions[][2] = {{1,1},{4,1},{9,1},{10,1},{11,1},{12,1},{13,1},{14,1},{15,1}};
-    //Serial.print("editAlarm position = ");Serial.println(i);
-    lcd.setCursor(cursorPositions[i][0],cursorPositions[i][1]);
-    lcd.cursor();
-    lcd.blink();
 }
 
 void printColorValue(Color_t val) {
@@ -738,7 +707,6 @@ void ButtonClick(Button& b){
             break;
         case KEY_RIGHT:
             Serial.print("KEY_RIGHT: ");
-            Serial.println(b.keyValue());
             break;
         case KEY_SWITCH_MAX:
             Serial.println("KEY_SWITCH_MAX");
@@ -766,138 +734,8 @@ void ButtonClick(Button& b){
         }
         bHoldButtonFlag = false;
     } else {
-        //PowerLoss,ShowClock, Alarm, EditClock, EditAlarm1, EditAlarm2
-        byte alarm = alarm2;
-        bool shouldIncrement = true;
-        byte dowToChange=0;
-
-        switch (ClockState){
-            case PowerLoss:
-                //any clickbutton and return to ShowClock
-                ClockState = ShowClock;
-                Clock.clearOSFStatus();
-                break;
-            case ShowClock:
-                //ShowClock Mode
-                //show alarm screens
-                switch (b.keyValue()){
-                    case KEY_MODE:
-                        //Do Nothing
-                        break;
-                    case KEY_LEFT:
-                        toggleShowAlarm(alarm1);
-                        break;
-                    case KEY_RIGHT:
-                        toggleShowAlarm(alarm2);
-                        break;
-                    default:
-                        //do nothing
-                        break;
-                }
-                break;
-            //ShowAlarm1 or ShowAlarm2 does nothing
-            case EditClock:
-                //Edit Clock Mode
-                switch (b.keyValue()){
-                    case KEY_MODE:
-                        //Increments cursor position
-                        //cpIndex += 1 % 7;
-                        cpIndex += 1;
-                        cpIndex %= 5;
-                        break;
-                    case KEY_LEFT:
-                        shouldIncrement = false;
-                    case KEY_RIGHT:
-                        // First  Row dd/mm/yyyy ##.#°
-                        //             0  1    2
-                        // Second Row hh:mm dt PWSCPSN
-                        //             3  4
-                        switch (cpIndex){
-                            case 0:
-                                //edit day
-                                changeDay(clock0, shouldIncrement);
-                                break;
-                            case 1:
-                                //edit month
-                                changeMonth(clock0, shouldIncrement);
-                                break;
-                            case 2:
-                                //edit year
-                                changeYear(clock0, shouldIncrement);
-                                break;
-                            case 3:
-                                //edit Hours
-                                changeHour(clock0, shouldIncrement);
-                                break;
-                            case 4:
-                                //edit Minute
-                                changeMinute(clock0, shouldIncrement);
-                                break;
-                            default:
-                                //do nothing
-                                break;
-                        }
-                        break;
-                    default:
-                        //do nothing
-                        break;
-                }
-                //End EditClock
-                break;
-            case EditAlarm1:
-                //Edit Alarm1
-                alarm = alarm1;
-            case EditAlarm2:
-                //Edit Alarm2
-                switch (b.keyValue()){
-                    case KEY_MODE:
-                        //Increments cursor position
-                        cpIndex += 1;
-                        cpIndex %= 9;
-                        break;
-                    case KEY_LEFT:
-                        // Decrements value
-                        shouldIncrement = false;
-                    case KEY_RIGHT:
-                        // Increments value
-                        // Second Row hh:mm PWSCPSN
-                        //             0  1 2345678
-                        switch (cpIndex){
-                            case 0:
-                                //edit Hours
-                                changeHour(alarm, shouldIncrement);
-                                break;
-                            case 1:
-                                //edit Minute
-                                changeMinute(alarm, shouldIncrement);
-                                break;
-                            case 2:
-                            case 3:
-                            case 4:
-                            case 5:
-                            case 6:
-                            case 7:
-                            case 8:
-                                dowToChange = (cpIndex == 8)? 1 : cpIndex; // Nd is on last position but clock library assumes Sun is on 1-st position: Nd (8) -> Sun (1)
-                                changeEnabledDows(alarm, dowToChange);
-                                break;
-                            default:
-                                //do nothing
-                                break;
-                        }
-                        break;
-                    default:
-                        //do nothing
-                        break;
-                }
-                break;
-            default:
-                //todo
-                break;
-        }
         if (b.keyValue() == KEY_SWITCH_MAX) {
           ledMgr.handleSwitch();
-          displayClock(true);
         }
     }
 }
@@ -930,160 +768,12 @@ void ButtonHold(Button& b){
 
     // To ignore back to back button hold?
     if ((millis()-buttonHoldPrevTime) > 2000){
-        switch (ClockState){
-            case PowerLoss:
-                //Any button held
-                //Edit main clock display
-                ClockState = EditClock;
-                cpIndex = 0;
-                buttonHoldPrevTime = millis();
-                bHoldButtonFlag = true;
-                Clock.clearOSFStatus();
-                break;
-            case ShowClock:
-                switch (b.keyValue()){
-                    case KEY_MODE:
-                        //Edit main clock display
-                        ClockState = EditClock;
-                        cpIndex = 0;
-                        buttonHoldPrevTime = millis();
-                        bHoldButtonFlag = true;
-                        break;
-                    case KEY_LEFT:
-                        //Edit Alarm1
-                        ClockState = EditAlarm1;
-                        cpIndex = 0;
-                        buttonHoldPrevTime = millis();
-                        bHoldButtonFlag = true;
-                        displayAlarm(1,true);
-                        break;
-                    case KEY_RIGHT:
-                        //Edit Alarm2
-                        ClockState = EditAlarm2;
-                        cpIndex = 0;
-                        buttonHoldPrevTime = millis();
-                        bHoldButtonFlag = true;
-                        displayAlarm(2,true);
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            case ShowAlarm1:
-                switch (b.keyValue()){
-                    case KEY_MODE:
-                        break;
-                    case KEY_LEFT:
-                        ClockState = EditAlarm1;
-                        cpIndex = 0;
-                        buttonHoldPrevTime = millis();
-                        bHoldButtonFlag = true;
-                        displayAlarm(1,true);
-                        //Switch to edit mode
-                        break;
-                    case KEY_RIGHT:
-                        //Do Nothing
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            case ShowAlarm2:
-                switch (b.keyValue()){
-                    case KEY_MODE:
-                        break;
-                    case KEY_LEFT:
-                        break;
-                    case KEY_RIGHT:
-                        //Edit Alarm2
-                        ClockState = EditAlarm2;
-                        cpIndex = 0;
-                        buttonHoldPrevTime = millis();
-                        bHoldButtonFlag = true;
-                        displayAlarm(2,true);
-                        break;
-                    default:
-                        break;
-                }
-                break;
-            case EditClock:  //Edit Clock
-                switch (b.keyValue()){
-                    case KEY_MODE:
-                        lcd.noBlink();
-                        lcd.noCursor();
-                        ClockState = ShowClock;
-                        buttonHoldPrevTime = millis();
-                        bHoldButtonFlag = true;
-                        break;
-                    case KEY_LEFT:
-                    case KEY_RIGHT:
-                    default:
-                        break;
-                }
-                break;
-            case EditAlarm1:  //Edit Alarm1
-                switch (b.keyValue()){
-                    case KEY_MODE:
-                        lcd.noBlink();
-                        lcd.noCursor();
-                        ClockState = ShowClock;
-                        buttonHoldPrevTime = millis();
-                        bHoldButtonFlag = true;
-                        displayClock(true);
-                        break;
-                    case KEY_LEFT:
-                    case KEY_RIGHT:
-                    default:
-                        break;
-                }
-                break;
-            case EditAlarm2:  //Edit Alarm1
-                switch (b.keyValue()){
-                    case KEY_MODE:
-                        lcd.noBlink();
-                        lcd.noCursor();
-                        ClockState = ShowClock;
-                        buttonHoldPrevTime = millis();
-                        bHoldButtonFlag = true;
-                        displayClock(true);
-                        break;
-                    case KEY_LEFT:
-                    case KEY_RIGHT:
-                    default:
-                        break;
-                }
-                break;
-            default:
-                //todo
-                break;
-        }
-
         if (b.keyValue() == KEY_SWITCH_MAX) {
 //            ledMgr.beginSettingMaxValue();
 //            Serial.println("Setting max alarm LED light value started...");
 //            bHoldButtonFlag = true;
         }
     }
-}
-
-String dow2Str(byte bDow) {
-    // Day of week to string or char array. DOW 1=Sunday, 0 is undefined
-    static const char *str[] = {"---", "Nd", "Pn", "Wt", "Sr", "Cz", "Pt", "So"};
-    if (bDow > 7) bDow = 0;
-    return(str[bDow]);
-}
-
-String p2Digits(int numValue) {
-    // utility function for digital clock display
-    // converts int to two digit char array
-    String str;
-
-    if(numValue < 10) {
-        str = "0" + String(numValue);
-    } else {
-        str = String(numValue);
-    }
-    return str;
 }
 
 float getTemperatureValue(){
@@ -1289,9 +979,6 @@ void setup() {
 
     EEPROM.begin(EEPROM_SIZE);
 
-    //tft.init();
-    //tft.fillScreen(TFT_BLACK);
-
     ledMgr.init();
 
     /*         Pin Modes            */
@@ -1334,8 +1021,8 @@ void setup() {
     CurrentTemperature = getTemperatureValue();
 
     /*  Button callback functions   */
-    MultiButton.clickHandler(ButtonClick);
-    MultiButton.holdHandler(ButtonHold,Button_Hold_Time);
+    //MultiButton.clickHandler(ButtonClick);
+    //MultiButton.holdHandler(ButtonHold,Button_Hold_Time);
 
     xTaskCreatePinnedToCore(
       LedTaskLoop,
@@ -1348,18 +1035,6 @@ void setup() {
     delay(500);  // needed to start-up task1
 
     attachInterrupt(digitalPinToInterrupt(SQW_Pin), AlarmIntrCallback, FALLING);
-
-    // Set "cursor" at top left corner of display (0,0) and select font 4
-    /*tft.setCursor(0, 0, 4);
-    tft.setTextColor(TFT_RED, TFT_BLACK);
-    tft.println("Hello!\n");
-    tft.setTextColor(TFT_ORANGE, TFT_BLACK);
-    tft.println("This is");
-    tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-    tft.println("Dawn ");
-    tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    tft.println("Simulator");
-    tft.println("     :D");*/
 
     serverSetup();
 
@@ -1387,8 +1062,6 @@ void loop() {
     switch (ClockState){
         case PowerLoss:
             if (ClockState != PrevState) { Serial.println("ClockState = PowerLoss"); PrevState = ClockState;}
-            //Serial.println("PowerLoss");
-            displayClock();
             //Flash Clock
             if ((mills-previousLcdMillis) >= flashInterval) {
                 previousLcdMillis = mills;
@@ -1402,52 +1075,12 @@ void loop() {
             break;
         case ShowClock:
             if (ClockState != PrevState) { Serial.println("ClockState = ShowClock"); PrevState = ClockState;}
-            //Serial.println("ShowClock");
-            //lcd.display();                     // Just in case it was off
-            displayClock();
-            break;
-        case ShowAlarm1:
-            if (ClockState != PrevState) { Serial.println("ClockState = ShowAlarm1"); PrevState = ClockState;}
-            //AlarmRunTime is defined by toggleShowAlarm
-            if ((mills-AlarmRunTime) <= Alarm_View_Pause) {
-                displayAlarm(alarm1);
-            } else {
-                ClockState = ShowClock;
-                displayClock(true);
-            }
-            break;
-        case ShowAlarm2:
-            if (ClockState != PrevState) { Serial.println("ClockState = ShowAlarm2"); PrevState = ClockState;}
-            //AlarmRunTime is defined by toggleShowAlarm
-            if ((mills-AlarmRunTime) <= Alarm_View_Pause) {
-                displayAlarm(alarm2);
-            } else {
-                ClockState = ShowClock;
-                displayClock(true);
-            }
-            break;
-        case EditClock:
-            if (ClockState != PrevState) { Serial.println("ClockState = EditClock"); PrevState = ClockState;}
-            editClock(cpIndex);
-            displayClock();
-            break;
-        case EditAlarm1:
-            //Edit Alarm1
-            if (ClockState != PrevState) { Serial.println("ClockState = EditAlarm1"); PrevState = ClockState;}
-            editAlarm(cpIndex);
-            displayAlarm(alarm1);
-            break;
-        case EditAlarm2:
-            //Edit Alarm2
-            if (ClockState != PrevState) { Serial.println("ClockState = EditAlarm2"); PrevState = ClockState;}
-            editAlarm(cpIndex);
-            displayAlarm(alarm2);
             break;
         default:
             Serial.println("ClockState = default!!");
-            displayClock();
             break;
     }
+    displayClock();
 
     bool shouldMoveOn = ledMgr.shouldMoveOn();
     if (shouldMoveOn) {

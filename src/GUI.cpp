@@ -474,10 +474,14 @@ void gui_set_temperature(float temperature) {
 void gui_set_date(uint16_t year, uint16_t month, uint16_t day) {
   lv_label_set_text_fmt(date_label, "%04d-%02d-%02d", year, month, day);
   if ((year >= START_ROLLER_YEAR) && (year < START_ROLLER_YEAR + NUM_ROLLER_YEARS)) {
-    lv_roller_set_selected(year_roller, year - START_ROLLER_YEAR, true);
+    lv_roller_set_selected(year_roller, year - START_ROLLER_YEAR, false);
+    lv_roller_set_selected(month_roller, month - 1, false);
+    lv_roller_set_selected(day_roller, day - 1, false);
   }
-  // month_roller
-  // day_roller
+}
+
+uint16_t gui_get_year() {
+  return lv_roller_get_selected(year_roller) + START_ROLLER_YEAR;
 }
 
 void setup_gui() {
