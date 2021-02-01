@@ -14,7 +14,7 @@ static const int ROLLER_DISTANCE_X = 2;
 static const int ROLLER_Y = 70;
 
 static const size_t NUM_ROLLER_YEARS = 40;
-static const size_t START_ROLLER_YEAR = 2021;
+static const size_t START_ROLLER_YEAR = 2020;
 static const size_t ROLLER_YEAR_DIGITS = 4;
 
 static const size_t NUM_ROLLER_MONTHS = 12;
@@ -59,10 +59,15 @@ static lv_obj_t * date_label = NULL;
 static lv_obj_t * temperature_label = NULL;
 
 // Date Time View widgets:
-lv_obj_t *year_roller = NULL;
-lv_obj_t *month_roller =  NULL;
-lv_obj_t *day_roller = NULL;
+static lv_obj_t *year_roller = NULL;
+static lv_obj_t *month_roller =  NULL;
+static lv_obj_t *day_roller = NULL;
 
+// Bottom Tile View
+static const int TILE_DATETIME = 0;
+static const int TILE_STATUS = 1;
+static const lv_point_t valid_pos[NUM_TILES] = { { 0, 0 }, { 1, 0 }, { 2, 0 }, {3, 0 } };
+static lv_obj_t *tileview = NULL;
 
 static void slider_event_cb(lv_obj_t * slider, lv_event_t event)
 {
@@ -371,8 +376,6 @@ lv_obj_t* create_bottom_tile(lv_obj_t* tileview, int tile_no) {
 
 void create_bottom_tileview(void)
 {
-  static lv_point_t valid_pos[NUM_TILES] = { { 0, 0 }, { 1, 0 }, { 2, 0 }, {3, 0 } };
-    lv_obj_t *tileview;
     tileview = lv_tileview_create(lv_scr_act(), NULL);
     lv_obj_set_size(tileview, SCREEN_WIDTH, SCREEN_HEIGHT);
     lv_obj_set_pos(tileview, 0, SCREEN_HEIGHT);
@@ -390,7 +393,7 @@ void create_bottom_tileview(void)
     create_alarm_set_view(tiles[2],0);
     create_alarm_set_view(tiles[3], 1);
 
-    lv_tileview_set_tile_act(tileview, 1, 0, false);
+    lv_tileview_set_tile_act(tileview, valid_pos[TILE_STATUS].x, valid_pos[TILE_STATUS].y, false);
 }
 
 void generate_roller_text(char* text, bool is_4_digit, unsigned start, unsigned num) {
@@ -482,6 +485,18 @@ void gui_set_date(uint16_t year, uint16_t month, uint16_t day) {
 
 uint16_t gui_get_year() {
   return lv_roller_get_selected(year_roller) + START_ROLLER_YEAR;
+}
+
+uint16_t gui_get_month() {
+  return lv_roller_get_selected(month_roller) + 1;
+}
+
+uint16_t gui_get_day() {
+  return lv_roller_get_selected(day_roller) + 1;
+}
+
+void gui_show_datetime_view() {
+  lv_tileview_set_tile_act(tileview, valid_pos[TILE_DATETIME].x, valid_pos[TILE_DATETIME].y, false);
 }
 
 void setup_gui() {

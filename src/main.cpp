@@ -147,17 +147,21 @@ const unsigned EEPROM_ADDR_MAX_LED_LEVEL = 0x0;
 const unsigned LIGHT_LEVEL_ALLOWED_DIFF = 10;
 const unsigned AUTO_SWITCH_OFF_TIMEOUT = 3 * 60 * 60 * 1000;
 
+const int16_t YEAR_MIN = 20;
+const int16_t YEAR_MAX = 199;
+const int16_t YEAR_OFFSET = 2000;
+
 unsigned lightLevelAtBrightening = 0;
 boolean prevShouldMoveOn = false;
 
 float getTemperatureValue();
-String dow2Str(byte bDow);
-String p2Digits(int numValue);
 void printLedStatus(int percent, int dir);
 void printAlarmIndicators(byte alarmEnabledStatus, byte enabledDows1, byte enabledDows2);
 void LedTaskLoop( void * parameter );
 
-void changeYearN(byte i, DateTime NowTime, int Year);
+void changeYear(byte i, DateTime &NowTime, int Year);
+void changeMonth(byte i, DateTime &NowTime, int Month);
+void changeDay(byte i, DateTime &NowTime, int Day);
 
 
 LedStripMgr ledMgr(Led_R_Pin, Led_G_Pin, Led_B_Pin, Led_WW_Pin, Led_CW_Pin);
@@ -245,7 +249,6 @@ Lcd_I2C lcd;
     byte EditHourType = 0;            // 0=AM, 1=PM, 2=24hour - used for edit only
     byte cpIndex = 0;                 // Cursor Position Index - used for edit mode
     bool bHoldButtonFlag = false;     // used to prevent holdButton also activating clickButton
-    bool bDisplayStatus = true;       // used to track the lcd display on status
     bool shouldShowPercent = false;
 
     // For ISR
@@ -284,14 +287,21 @@ void displayClock(bool changeFlag=false) {
         }
     }
 
-    uint16_t year = gui_get_year() - 2000;
+    uint16_t year = gui_get_year() - YEAR_OFFSET;
     if (year != PreviousTime.Year) {
-        changeYearN(clock0, NowTime, year);
+        changeYear(clock0, NowTime, year);
         dateChanged = true;
     }
-
-    if (dateChanged) {
-        NowTime = Clock.read();
+    uint16_t month = gui_get_month();
+    if (month != PreviousTime.Month) {
+        changeMonth(clock0, NowTime, month);
+        dateChanged = true;
+    }
+    uint16_t day = gui_get_day();
+    if (day != PreviousTime.Day) {
+        // day must be adjusted also if either year (leap-year) or a month has changed
+        changeDay(clock0, NowTime, day);
+        dateChanged = true;
     }
 
     // Check for Time change
@@ -328,7 +338,7 @@ void displayClock(bool changeFlag=false) {
     }
 
     if (temperatureChanged) gui_set_temperature(CurrentTemperature);
-    if (dateChanged) gui_set_date(2000 + NowTime.Year, NowTime.Month, NowTime.Day);
+    if (dateChanged) gui_set_date(YEAR_OFFSET + NowTime.Year, NowTime.Month, NowTime.Day);
 }
 
 void displayAlarm(byte index=1, bool changeFlag=false) {
@@ -358,6 +368,7 @@ void displayAlarm(byte index=1, bool changeFlag=false) {
        hh:mm AM Weekend
        Alarm 2      ON
        hh:mm 24 Once                                         */
+   /*
     AlarmTime alarm;            //create AlarmTime struct from Library
 
     if (index == alarm2) {
@@ -424,7 +435,7 @@ void displayAlarm(byte index=1, bool changeFlag=false) {
                 break;
         }
         PreviousAlarm = alarm;
-    }
+    }*/
 }
 
 void changeHour(byte i=clock0, bool increment = true){
@@ -577,27 +588,23 @@ void changeEnabledDows(byte i, byte dow) {
     }//TODO: Error checking. Would return 0 for fail and 1 for OK
 }
 
-void changeMonth(byte i=0, bool increment = true){
-    DateTime NowTime;
-    NowTime = Clock.read();
-    int Month = NowTime.Month;
-    if (increment == true) {
-        Month += 1;
-    } else {
-        Month -= 1;
-    }
+void changeYear(byte i, DateTime &NowTime, int Year) {
+    if (Year < YEAR_MIN) { Year = YEAR_MAX; }
+    if (Year > YEAR_MAX){ Year = YEAR_MIN; }
+    NowTime.Year = byte(Year);
+    changeDay(i, NowTime, NowTime.Day);
+}
+
+void changeMonth(byte i, DateTime &NowTime, int Month) {
     if (Month > 12) { Month = 1; }
     if (Month < 1) { Month = 12; }
     NowTime.Month = byte(Month);
-    Clock.write(NowTime);
+    changeDay(i, NowTime, NowTime.Day);
 }
 
-void changeDay(byte i=0, bool increment = true){
-    DateTime NowTime;
-    NowTime = Clock.read();
-    int Day = NowTime.Day;
+void changeDay(byte i, DateTime &NowTime, int Day) {
     byte Month = NowTime.Month;
-    byte Year = NowTime.Year + 2000;
+    uint16_t Year = NowTime.Year + YEAR_OFFSET;
     byte DaysMax = 31;
     switch (Month){
         case 1:
@@ -626,33 +633,10 @@ void changeDay(byte i=0, bool increment = true){
             break;
     }
     //Serial.print("DaysMax = ");Serial.println(DaysMax);
-    if (increment == true) { Day += 1; } else { Day -= 1; }
     if (Day < 1) { Day = DaysMax; }
     if (Day > DaysMax){Day = 1;}
     //Serial.print("changeDay saved = "); Serial.println(Day);
     NowTime.Day = byte(Day);
-    Clock.write(NowTime);
-}
-
-void changeYearN(byte i, DateTime NowTime, int Year) {
-    if (Year < 18) { Year = 199; }
-    if (Year > 199){ Year = 18; }
-    NowTime.Year = byte(Year);
-    Clock.write(NowTime);
-}
-
-void changeYear(byte i=0, bool increment = true){
-    DateTime NowTime;
-    NowTime = Clock.read();
-    int Year = NowTime.Year;
-    if (increment == true) {
-        Year += 1;
-    } else {
-        Year -= 1;
-    }
-    if (Year < 18) { Year = 199; }
-    if (Year > 199){ Year = 18; }
-    NowTime.Year = byte(Year);
     Clock.write(NowTime);
 }
 
@@ -1013,11 +997,7 @@ void setup() {
     /*         Clock Stuff          */
     Clock.begin();
     //Clock.setInterruptCtrl(true);
-    if (Clock.getOSFStatus() == true){
-        //Restart from power loss detected
-        ClockState = PowerLoss;
-        Serial.println("PowerLoss State");
-    }
+
     CurrentTemperature = getTemperatureValue();
 
     /*  Button callback functions   */
@@ -1041,6 +1021,13 @@ void setup() {
     setup_lvglue();
     setup_gui();
 
+    if (Clock.getOSFStatus() == true){
+        //Restart from power loss detected
+        gui_show_datetime_view();
+        Clock.clearOSFStatus();
+        Serial.println("PowerLoss State");
+    }
+
     //Display the clock
     displayClock(true);
 
@@ -1062,16 +1049,6 @@ void loop() {
     switch (ClockState){
         case PowerLoss:
             if (ClockState != PrevState) { Serial.println("ClockState = PowerLoss"); PrevState = ClockState;}
-            //Flash Clock
-            if ((mills-previousLcdMillis) >= flashInterval) {
-                previousLcdMillis = mills;
-                if (bDisplayStatus == true){
-                    lcd.noDisplay();
-                } else {
-                    lcd.display();
-                }
-                bDisplayStatus = !bDisplayStatus;
-            }
             break;
         case ShowClock:
             if (ClockState != PrevState) { Serial.println("ClockState = ShowClock"); PrevState = ClockState;}
@@ -1087,7 +1064,6 @@ void loop() {
       shouldShowPercent = true;
     } else {
       if (prevShouldMoveOn) {
-        displayClock(true);
         shouldShowPercent = false;
         log_d("Max Level reached at %d%%", ledMgr.getPercent());
       }
