@@ -159,9 +159,12 @@ void printLedStatus(int percent, int dir);
 void printAlarmIndicators(byte alarmEnabledStatus, byte enabledDows1, byte enabledDows2);
 void LedTaskLoop( void * parameter );
 
-void changeYear(byte i, DateTime &NowTime, int Year);
-void changeMonth(byte i, DateTime &NowTime, int Month);
-void changeDay(byte i, DateTime &NowTime, int Day);
+void changeYear(DateTime &NowTime, byte Year);
+void changeMonth(DateTime &NowTime, byte Month);
+void changeDay(DateTime &NowTime, byte Day);
+void changeHour(DateTime &NowTime, byte Hour);
+void changeMinute(DateTime &NowTime, byte Minute);
+
 
 
 LedStripMgr ledMgr(Led_R_Pin, Led_G_Pin, Led_B_Pin, Led_WW_Pin, Led_CW_Pin);
@@ -270,6 +273,7 @@ void displayClock(bool changeFlag=false) {
    * ***************************************************** */
     bool temperatureChanged = changeFlag;
     bool dateChanged = changeFlag;
+    bool timeChanged = changeFlag;
 
     DateTime NowTime;            //create DateTime struct from Library
     NowTime = Clock.read();      // get the latest clock values
@@ -287,26 +291,41 @@ void displayClock(bool changeFlag=false) {
         }
     }
 
-    uint16_t year = gui_get_year() - YEAR_OFFSET;
+    byte year = gui_get_year() - YEAR_OFFSET;
     if (year != PreviousTime.Year) {
-        changeYear(clock0, NowTime, year);
+        changeYear(NowTime, year);
         dateChanged = true;
     }
-    uint16_t month = gui_get_month();
+    byte month = gui_get_month();
     if (month != PreviousTime.Month) {
-        changeMonth(clock0, NowTime, month);
+        changeMonth(NowTime, month);
         dateChanged = true;
     }
-    uint16_t day = gui_get_day();
+    byte day = gui_get_day();
     if (day != PreviousTime.Day) {
         // day must be adjusted also if either year (leap-year) or a month has changed
-        changeDay(clock0, NowTime, day);
+        changeDay(NowTime, day);
         dateChanged = true;
     }
 
+    byte hour = gui_get_hour();
+    if (hour != PreviousTime.Hour) {
+        changeHour(NowTime, hour);
+        timeChanged = true;
+    }
+
+    byte minute = gui_get_minute();
+    if (minute != PreviousTime.Minute) {
+        changeMinute(NowTime, minute);
+        timeChanged = true;
+    }
     // Check for Time change
-    if (NowTime.Hour != PreviousTime.Hour){ changeFlag = true; }
-    if (NowTime.Minute != PreviousTime.Minute){ changeFlag = true; }
+    if ((NowTime.Hour != PreviousTime.Hour) ||
+        (NowTime.Minute != PreviousTime.Minute))
+    {
+        timeChanged = true;
+    }
+
     if ((NowTime.Day != PreviousTime.Day) ||
         (NowTime.Month != PreviousTime.Month) ||
         (NowTime.Year != PreviousTime.Year))
@@ -339,6 +358,7 @@ void displayClock(bool changeFlag=false) {
 
     if (temperatureChanged) gui_set_temperature(CurrentTemperature);
     if (dateChanged) gui_set_date(YEAR_OFFSET + NowTime.Year, NowTime.Month, NowTime.Day);
+    if (timeChanged) gui_set_time(NowTime.Hour, NowTime.Minute);
 }
 
 void displayAlarm(byte index=1, bool changeFlag=false) {
@@ -438,53 +458,12 @@ void displayAlarm(byte index=1, bool changeFlag=false) {
     }*/
 }
 
-void changeHour(byte i=clock0, bool increment = true){
-    /*  Increments or decrements the hour by one
-     *    i = 0 Clock
-     *      = 1 Alarm1
-     *      = 2 Alarm2
-     */
-    AlarmTime alarm;
-    DateTime NowTime;                  //create DateTime struct from Library
-    int Hour;
-
-    switch (i){
-        case clock0:
-            //Clock
-            NowTime = Clock.read();        // get the latest clock values
-            Hour = NowTime.Hour;
-            break;
-        case alarm1:
-            //alarm1
-            alarm = Clock.readAlarm(alarm1);
-            Hour = alarm.Hour;
-            break;
-        case alarm2:
-            //alarm2
-            alarm = Clock.readAlarm(alarm2);
-            Hour = alarm.Hour;
-            break;
-        default:
-            //Clock
-            NowTime = Clock.read();      // get the latest clock values
-            Hour = NowTime.Hour;
-            break;
-    }
-    if (increment == true){
-        Hour += 1;
-    } else {
-        Hour -= 1;
-    }
+void changeHour(DateTime &NowTime, byte Hour) {
     Hour %= 24;
-    if (Hour < 0) { Hour = 23;}
     //Serial.print("24Hour = ");Serial.println(Hour);
-    switch (i){
-        case clock0:
-            //Clock
-            NowTime.Hour = byte(Hour);
-            Clock.write(NowTime);
-            break;
-        case alarm1:
+    NowTime.Hour = Hour;
+    Clock.write(NowTime);
+/*        case alarm1:
             //alarm1
             alarm.Hour = byte(Hour);
             Clock.setAlarm(alarm,1);
@@ -499,27 +478,24 @@ void changeHour(byte i=clock0, bool increment = true){
             NowTime.Hour = Hour;
             Clock.write(NowTime);
             break;
-    }
+    }*/
     Serial.println("End changeHour");
     //TODO: Error checking. Would return 0 for fail and 1 for OK
 }
 
-void changeMinute(byte i=0, bool increment = true){
-    /*  Increments or decrements the minute by one
-     *    i = 0 Clock
+void changeMinute(DateTime &NowTime, byte Minute) {
+    Minute %= 60;
+    //Serial.println(Minute);
+    NowTime.Minute = Minute;
+    Clock.write(NowTime);
+    Serial.println("End changeMinute");
+
+    /*
      *      = 1 Alarm1
      *      = 2 Alarm2
      */
-    AlarmTime alarm;
-    DateTime NowTime;            //create DateTime struct from Library
-    int Minute;
 
-    switch (i){
-        case clock0:
-            //Clock
-            NowTime = Clock.read();        // get the latest clock values
-            Minute = NowTime.Minute;
-            break;
+    /*switch (i){
         case alarm1:
             //alarm1
             alarm = Clock.readAlarm(alarm1);
@@ -567,7 +543,7 @@ void changeMinute(byte i=0, bool increment = true){
             NowTime.Minute = byte(Minute);
             Clock.write(NowTime);
             break;
-    }
+    }*/
     //TODO: Error checking. Would return 0 for fail and 1 for OK
 }
 
@@ -588,21 +564,21 @@ void changeEnabledDows(byte i, byte dow) {
     }//TODO: Error checking. Would return 0 for fail and 1 for OK
 }
 
-void changeYear(byte i, DateTime &NowTime, int Year) {
+void changeYear(DateTime &NowTime, byte Year) {
     if (Year < YEAR_MIN) { Year = YEAR_MAX; }
     if (Year > YEAR_MAX){ Year = YEAR_MIN; }
-    NowTime.Year = byte(Year);
-    changeDay(i, NowTime, NowTime.Day);
+    NowTime.Year = Year;
+    changeDay(NowTime, NowTime.Day);
 }
 
-void changeMonth(byte i, DateTime &NowTime, int Month) {
+void changeMonth(DateTime &NowTime, byte Month) {
     if (Month > 12) { Month = 1; }
     if (Month < 1) { Month = 12; }
-    NowTime.Month = byte(Month);
-    changeDay(i, NowTime, NowTime.Day);
+    NowTime.Month = Month;
+    changeDay(NowTime, NowTime.Day);
 }
 
-void changeDay(byte i, DateTime &NowTime, int Day) {
+void changeDay(DateTime &NowTime, byte Day) {
     byte Month = NowTime.Month;
     uint16_t Year = NowTime.Year + YEAR_OFFSET;
     byte DaysMax = 31;
@@ -636,7 +612,7 @@ void changeDay(byte i, DateTime &NowTime, int Day) {
     if (Day < 1) { Day = DaysMax; }
     if (Day > DaysMax){Day = 1;}
     //Serial.print("changeDay saved = "); Serial.println(Day);
-    NowTime.Day = byte(Day);
+    NowTime.Day = Day;
     Clock.write(NowTime);
 }
 
@@ -1042,8 +1018,6 @@ void setup() {
  *                         Void Loop                         *
  * ********************************************************* */
 void loop() {
-    static unsigned long previousLcdMillis = 0;
-    unsigned long mills = millis();
     //if (ClockState != PrevState) { Serial.print("ClockState = ");Serial.println(ClockState); PrevState = ClockState;}
 
     switch (ClockState){

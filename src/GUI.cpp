@@ -1,6 +1,15 @@
 #include <lvgl.h>
 
 #include <stdio.h>
+#include "GUI.h"
+
+enum RollerIndexes_t {
+  TIME_ROLLER_IDX,
+  ALARM_0_ROLLER_IDX,
+  ALARM_1_ROLLER_IDX,
+  LAST_ROLLER_IDX
+};
+
 
 #define DEFAULT_TXT_COLOR LV_COLOR_SILVER
 
@@ -54,8 +63,13 @@ LV_IMG_DECLARE(arrow_blue_img);
 LV_IMG_DECLARE(sun_img);
 LV_IMG_DECLARE(stars_img);
 
+// Date Time and Alarm roller widgets:
+lv_obj_t *hour_rollers[LAST_ROLLER_IDX];
+lv_obj_t *minute_rollers[LAST_ROLLER_IDX];
+
 // Status View widgets:
 static lv_obj_t * date_label = NULL;
+static lv_obj_t * time_label = NULL;
 static lv_obj_t * temperature_label = NULL;
 
 // Date Time View widgets:
@@ -233,8 +247,7 @@ void create_status_view(lv_obj_t* par_obj) {
     // LV_COLOR_MAKE(0xFF, 0x80, 0x00) - light orange - almost yellow
     // LV_COLOR_MAKE(0xDF, 0x50, 0x00) - orange
     // LV_COLOR_MAKE(0xCF, 0x40, 0x00) - darg orange - almost red
-    lv_obj_t * time_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_TITLE, LV_COLOR_MAKE(0xCF, 0x40, 0x00));
-    lv_label_set_text_fmt(time_label, "12:59");
+    time_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_TITLE, LV_COLOR_MAKE(0xCF, 0x40, 0x00));
     lv_obj_set_pos(time_label, 20, 60);
 
     temperature_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_TITLE, LV_COLOR_TEAL);
@@ -305,15 +318,14 @@ void create_date_rollers(lv_obj_t* par_obj, size_t x, size_t y) {
     day_roller = create_roller(par_obj, roller_days_arr);
     lv_obj_align(day_roller, dash2_label, LV_ALIGN_OUT_RIGHT_MID, 1, 0);
 }
+void create_time_rollers(lv_obj_t* par_obj, int roller_idx, size_t x, size_t y) {
+    hour_rollers[roller_idx] = create_roller(par_obj, roller_hours_arr);
+    lv_obj_set_pos(hour_rollers[roller_idx], x, y);
 
-void create_time_rollers(lv_obj_t* par_obj, size_t x, size_t y) {
-    lv_obj_t *hour_roller = create_roller(par_obj, roller_hours_arr);
-    lv_obj_set_pos(hour_roller, x, y);
+    lv_obj_t * colon_label = create_label(par_obj, ":", hour_rollers[roller_idx]);
 
-    lv_obj_t * colon_label = create_label(par_obj, ":", hour_roller);
-
-    lv_obj_t *minute_roller = create_roller(par_obj, roller_minutes_arr);
-    lv_obj_align(minute_roller, colon_label, LV_ALIGN_OUT_RIGHT_MID, ROLLER_DISTANCE_X, 0);
+    minute_rollers[roller_idx] = create_roller(par_obj, roller_minutes_arr);
+    lv_obj_align(minute_rollers[roller_idx], colon_label, LV_ALIGN_OUT_RIGHT_MID, ROLLER_DISTANCE_X, 0);
 }
 
 void create_date_time_set_view(lv_obj_t* par_obj) {
@@ -325,7 +337,7 @@ void create_date_time_set_view(lv_obj_t* par_obj) {
   create_date_rollers(par_obj, DATE_ROLLER_X, ROLLER_Y);
 
     // Time
-  create_time_rollers(par_obj, TIME_ROLLER_X, ROLLER_Y);
+  create_time_rollers(par_obj, TIME_ROLLER_IDX, TIME_ROLLER_X, ROLLER_Y);
 }
 
 lv_obj_t* create_switch(lv_obj_t* par_obj) {
@@ -362,7 +374,7 @@ void create_alarm_set_view(lv_obj_t* par_obj, int alarm_no) {
   }
 
   // Time
-  create_time_rollers(par_obj, TIME_ROLLER_X, ROLLER_Y);
+  create_time_rollers(par_obj, ALARM_0_ROLLER_IDX + alarm_no, TIME_ROLLER_X, ROLLER_Y);
 }
 
 lv_obj_t* create_bottom_tile(lv_obj_t* tileview, int tile_no) {
@@ -475,7 +487,7 @@ void gui_set_temperature(float temperature) {
 }
 
 void gui_set_date(uint16_t year, uint16_t month, uint16_t day) {
-  lv_label_set_text_fmt(date_label, "%04d-%02d-%02d", year, month, day);
+  lv_label_set_text_fmt(date_label, "%04u-%02u-%02u", year, month, day);
   if ((year >= START_ROLLER_YEAR) && (year < START_ROLLER_YEAR + NUM_ROLLER_YEARS)) {
     lv_roller_set_selected(year_roller, year - START_ROLLER_YEAR, false);
     lv_roller_set_selected(month_roller, month - 1, false);
@@ -494,6 +506,22 @@ uint16_t gui_get_month() {
 uint16_t gui_get_day() {
   return lv_roller_get_selected(day_roller) + 1;
 }
+
+void gui_set_time(uint16_t hour, uint16_t minute) {
+  if ((hour <= 23) && (minute <= 59)) {
+    lv_label_set_text_fmt(time_label, "%02u:%02u", hour, minute);
+    lv_roller_set_selected(hour_rollers[TIME_ROLLER_IDX], hour, false);
+    lv_roller_set_selected(minute_rollers[TIME_ROLLER_IDX], minute, false);
+  }
+}
+
+uint16_t gui_get_hour() {
+  return lv_roller_get_selected(hour_rollers[TIME_ROLLER_IDX]);
+}
+uint16_t gui_get_minute() {
+  return lv_roller_get_selected(minute_rollers[TIME_ROLLER_IDX]);
+}
+
 
 void gui_show_datetime_view() {
   lv_tileview_set_tile_act(tileview, valid_pos[TILE_DATETIME].x, valid_pos[TILE_DATETIME].y, false);
