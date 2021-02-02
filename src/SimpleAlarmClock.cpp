@@ -1,7 +1,7 @@
 #include "SimpleAlarmClock.h"
 #include <Wire.h>
 
-#define MOCK
+//#define MOCK
 #ifdef MOCK
 static DateTime dateTimeMock;
 static AlarmTime alarmMock;

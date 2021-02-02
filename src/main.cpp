@@ -207,7 +207,7 @@ Lcd_I2C lcd;
     // Menu  (KEY_MODE):          2700
     // no key pressed:            4095
     // So we create a vector with following limits separating buttons readouts:
-    Button MultiButton(MultiButton_Pin, BUTTON_MULTIKEY,true, DebouceTime, {200, 700, 1400, 2200, 3300});
+    Button MultiButton(MultiButton_Pin, BUTTON_MULTIKEY,true, DebouceTime, {300, 800, 1500, 2200, 3300}); // {200, 700, 1400, 2200, 3300});
 
     const int Button_Hold_Time = 3000;      // button hold length of time in ms
     const int Alarm_View_Pause = 2000;      // View Alarm Length of time in ms
@@ -479,7 +479,7 @@ void changeHour(DateTime &NowTime, byte Hour) {
             Clock.write(NowTime);
             break;
     }*/
-    Serial.println("End changeHour");
+    //Serial.println("End changeHour");
     //TODO: Error checking. Would return 0 for fail and 1 for OK
 }
 
@@ -488,7 +488,7 @@ void changeMinute(DateTime &NowTime, byte Minute) {
     //Serial.println(Minute);
     NowTime.Minute = Minute;
     Clock.write(NowTime);
-    Serial.println("End changeMinute");
+    //Serial.println("End changeMinute");
 
     /*
      *      = 1 Alarm1
@@ -671,6 +671,9 @@ void ButtonClick(Button& b){
         case KEY_SWITCH_MAX:
             Serial.println("KEY_SWITCH_MAX");
             break;
+        case KEY_SWITCH_CUSTOM:
+            Serial.println("KEY_SWITCH_CUSTOM");
+            break;
         default:
             Serial.println("UNKNOWN");
             //do nothing
@@ -719,6 +722,9 @@ void ButtonHold(Button& b){
             break;
         case KEY_SWITCH_MAX:
             Serial.println("KEY_SWITCH_MAX");
+            break;
+        case KEY_SWITCH_CUSTOM:
+            Serial.println("KEY_SWITCH_CUSTOM");
             break;
         default:
             Serial.println("UNKNOWN");
@@ -977,8 +983,8 @@ void setup() {
     CurrentTemperature = getTemperatureValue();
 
     /*  Button callback functions   */
-    //MultiButton.clickHandler(ButtonClick);
-    //MultiButton.holdHandler(ButtonHold,Button_Hold_Time);
+    MultiButton.clickHandler(ButtonClick);
+    MultiButton.holdHandler(ButtonHold,Button_Hold_Time);
 
     xTaskCreatePinnedToCore(
       LedTaskLoop,
