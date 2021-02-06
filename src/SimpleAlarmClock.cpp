@@ -358,10 +358,10 @@ void SimpleAlarmClock::resetClock(void){
     currentDate.Second = 0;
     currentDate.Minute = 0;
     currentDate.Hour = 12;
-    currentDate.Dow = 2;        // 1-7  2=Monday (Day Of Week)
+    currentDate.Dow = 4;        // 1-7  4=Wednesday (Day Of Week)
     currentDate.Day = 1;        // calendar dd
     currentDate.Month = 1;      // calendar mm
-    currentDate.Year = 18;      // calendar yyy, note 2000 must be addded
+    currentDate.Year = 20;      // calendar yyy, note 2000 must be addded
     currentDate.ClockMode = 2;  // 0-2; 0=AM, 1=PM, 2=24hour
 
     write(currentDate);
@@ -392,6 +392,7 @@ void SimpleAlarmClock::resetAlarm(byte alarmSelected){
         alarm_i.AlarmMode = 0;      // 0=Daily, 1=Weekday, 2=Weekend, 3=Once
         alarm_i.ClockMode = 2;      // 0-2; 0=AM, 1=PM, 2=24hour
         alarm_i.Enabled = false;
+        alarm_i.EnabledDows = 0;
         setAlarm(alarm_i, alarmSelected);
     }
     // else do nothing

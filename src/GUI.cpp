@@ -1,14 +1,8 @@
 #include <lvgl.h>
 
 #include <stdio.h>
+#include <assert.h>
 #include "GUI.h"
-
-enum RollerIndexes_t {
-  TIME_ROLLER_IDX,
-  ALARM_0_ROLLER_IDX,
-  ALARM_1_ROLLER_IDX,
-  LAST_ROLLER_IDX
-};
 
 
 #define DEFAULT_TXT_COLOR LV_COLOR_SILVER
@@ -21,6 +15,7 @@ static const int DATE_ROLLER_X = 0;
 static const int TIME_ROLLER_X = 212;
 static const int ROLLER_DISTANCE_X = 2;
 static const int ROLLER_Y = 70;
+static const int ALARM_TIME_LABEL_OFFSET = -5;
 
 static const size_t NUM_ROLLER_YEARS = 40;
 static const size_t START_ROLLER_YEAR = 2020;
@@ -256,6 +251,7 @@ void create_status_view(lv_obj_t* par_obj) {
     // Alarm status table
     for (int j = 0; j < NUM_ALARMS; j++) {
         alarm_time_labels[j] = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_NORMAL, DEFAULT_TXT_COLOR);
+        lv_obj_set_width(alarm_time_labels[j], 50);
         for (int i = 0; i < NUM_DOWS; i++) {
             alarm_dow_status_buttons[i][j] = create_checkable_button(par_obj);
         }
@@ -265,8 +261,7 @@ void create_status_view(lv_obj_t* par_obj) {
     lv_obj_align(alarm_dow_status_buttons[0][0], alarm_dow_status_buttons[0][1], LV_ALIGN_OUT_TOP_MID, 0, -3);
 
     for (int j = 0; j < NUM_ALARMS; j++) {
-        lv_label_set_text_fmt(alarm_time_labels[j], "%d:54", j*20+4);
-        lv_obj_align(alarm_time_labels[j], alarm_dow_status_buttons[0][j], LV_ALIGN_OUT_LEFT_MID, -5, 0);
+        lv_obj_align(alarm_time_labels[j], alarm_dow_status_buttons[0][j], LV_ALIGN_OUT_LEFT_MID, ALARM_TIME_LABEL_OFFSET, 0);
         for (int i = 1; i < NUM_DOWS; i++) {
             lv_obj_align(alarm_dow_status_buttons[i][j], alarm_dow_status_buttons[i-1][j], LV_ALIGN_OUT_RIGHT_MID, 3, 0);
         }
@@ -507,21 +502,52 @@ uint16_t gui_get_day() {
   return lv_roller_get_selected(day_roller) + 1;
 }
 
-void gui_set_time(uint16_t hour, uint16_t minute) {
+void gui_set_time(RollerIndexes_t idx, uint16_t hour, uint16_t minute) {
   if ((hour <= 23) && (minute <= 59)) {
-    lv_label_set_text_fmt(time_label, "%02u:%02u", hour, minute);
-    lv_roller_set_selected(hour_rollers[TIME_ROLLER_IDX], hour, false);
-    lv_roller_set_selected(minute_rollers[TIME_ROLLER_IDX], minute, false);
+    if (idx == TIME_ROLLER_IDX) {
+      lv_label_set_text_fmt(time_label, "%02u:%02u", hour, minute);
+    } else {
+      int alarm_label_idx = idx - ALARM_0_ROLLER_IDX;
+      lv_label_set_text_fmt(alarm_time_labels[alarm_label_idx], "%02u:%02u", hour, minute);
+      lv_obj_align(alarm_time_labels[alarm_label_idx], alarm_dow_status_buttons[0][alarm_label_idx], LV_ALIGN_OUT_LEFT_MID, ALARM_TIME_LABEL_OFFSET, 0);
+    }
+    lv_roller_set_selected(hour_rollers[idx], hour, false);
+    lv_roller_set_selected(minute_rollers[idx], minute, false);
   }
 }
 
-uint16_t gui_get_hour() {
-  return lv_roller_get_selected(hour_rollers[TIME_ROLLER_IDX]);
+uint16_t gui_get_hour(RollerIndexes_t idx) {
+  return lv_roller_get_selected(hour_rollers[idx]);
 }
-uint16_t gui_get_minute() {
-  return lv_roller_get_selected(minute_rollers[TIME_ROLLER_IDX]);
+uint16_t gui_get_minute(RollerIndexes_t idx) {
+  return lv_roller_get_selected(minute_rollers[idx]);
 }
 
+void gui_set_alarm_enabled_dows(RollerIndexes_t idx, bool alarmEnabled, uint8_t enabledDows) {
+  assert((idx == ALARM_0_ROLLER_IDX) || (idx == ALARM_1_ROLLER_IDX));
+  int alarm_idx = idx - ALARM_0_ROLLER_IDX;
+
+  for (uint8_t i = 2; i <=8; i++) {
+    uint8_t dow = (i > 7)? 1 : i;
+
+    uint8_t alarmEnabledOnDow = ((enabledDows >> dow) & 1) && alarmEnabled;
+    lv_imgbtn_set_state(alarm_dow_status_buttons[i-2][alarm_idx], alarmEnabledOnDow? LV_BTN_STATE_CHECKED_RELEASED : LV_BTN_STATE_RELEASED);
+  }
+}
+
+uint8_t gui_get_alarm_enabled_dows(RollerIndexes_t idx) {
+  assert((idx == ALARM_0_ROLLER_IDX) || (idx == ALARM_1_ROLLER_IDX));
+  int alarm_idx = idx - ALARM_0_ROLLER_IDX;
+  uint8_t enabledDows = 0;
+
+  for (uint8_t i = 2; i <=8; i++) {
+    uint8_t dow = (i > 7)? 1 : i;
+    lv_btn_state_t state = lv_imgbtn_get_state(alarm_dow_status_buttons[i-2][alarm_idx]);
+    uint8_t alarmEnabledOnDow = ((state == LV_BTN_STATE_CHECKED_RELEASED) || (state == LV_BTN_STATE_CHECKED_PRESSED))? 1 : 0;
+    enabledDows += alarmEnabledOnDow << dow;
+  }
+  return enabledDows;
+}
 
 void gui_show_datetime_view() {
   lv_tileview_set_tile_act(tileview, valid_pos[TILE_DATETIME].x, valid_pos[TILE_DATETIME].y, false);

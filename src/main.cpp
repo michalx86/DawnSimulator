@@ -219,7 +219,6 @@ Lcd_I2C lcd;
     const byte Weekend=2;
     const byte Once=3;
     //Clocks
-    const byte clock0=0;
     const byte alarm1=1;
     const byte alarm2=2;
 
@@ -248,7 +247,7 @@ Lcd_I2C lcd;
     unsigned long lastClockLedPercentShownTime = 0;
     DateTime PreviousTime;            // Maybe move as static variable under displayClock function
     int PreviousLedLevelPercent = -1;
-    AlarmTime PreviousAlarm;          // Maybe move as static variable under displayAlarm function
+    AlarmTime PreviousAlarm[alarm2 + 1];          // Maybe move as static variable under displayAlarm function
     byte EditHourType = 0;            // 0=AM, 1=PM, 2=24hour - used for edit only
     byte cpIndex = 0;                 // Cursor Position Index - used for edit mode
     bool bHoldButtonFlag = false;     // used to prevent holdButton also activating clickButton
@@ -262,21 +261,7 @@ volatile unsigned alarmIntrCounter = 0;
 /* ***********************************************************
  *                         Functions                         *
  * ********************************************************* */
-
-void displayClock(bool changeFlag=false) {
-  /* ***************************************************** *
-   * Display clock - skips update if there are no changes
-   *
-   * Parameters:
-   *   changeFlag - true forces display refresh
-   *              - false does nothing
-   * ***************************************************** */
-    bool temperatureChanged = changeFlag;
-    bool dateChanged = changeFlag;
-    bool timeChanged = changeFlag;
-
-    DateTime NowTime;            //create DateTime struct from Library
-    NowTime = Clock.read();      // get the latest clock values
+void displayTemperature(bool changeFlag=false) {
     // CheckFlag Section:
     // The DS3231 temperature can be read once every 64 seconds.
     // Check the temperature every 65 seconds
@@ -287,50 +272,70 @@ void displayClock(bool changeFlag=false) {
         CurrentTemperature = getTemperatureValue();
         RunTime = mills;
         if (CurrentTemperature != PreviousTemperature) {
-            temperatureChanged = true;
+            changeFlag = true;
         }
     }
+    if (changeFlag) {
+        gui_set_temperature(CurrentTemperature);
+    }
+}
 
-    byte year = gui_get_year() - YEAR_OFFSET;
-    if (year != PreviousTime.Year) {
-        changeYear(NowTime, year);
-        dateChanged = true;
-    }
-    byte month = gui_get_month();
-    if (month != PreviousTime.Month) {
-        changeMonth(NowTime, month);
-        dateChanged = true;
-    }
-    byte day = gui_get_day();
-    if (day != PreviousTime.Day) {
-        // day must be adjusted also if either year (leap-year) or a month has changed
-        changeDay(NowTime, day);
-        dateChanged = true;
-    }
+void displayClock(bool changeFlag=false) {
+  /* ***************************************************** *
+   * Display clock - skips update if there are no changes
+   *
+   * Parameters:
+   *   changeFlag - true forces display refresh
+   *              - false does nothing
+   * ***************************************************** */
+    bool dateChanged = changeFlag;
+    bool timeChanged = changeFlag;
 
-    byte hour = gui_get_hour();
-    if (hour != PreviousTime.Hour) {
-        changeHour(NowTime, hour);
-        timeChanged = true;
-    }
+    DateTime NowTime;            //create DateTime struct from Library
+    NowTime = Clock.read();      // get the latest clock values
 
-    byte minute = gui_get_minute();
-    if (minute != PreviousTime.Minute) {
-        changeMinute(NowTime, minute);
-        timeChanged = true;
-    }
-    // Check for Time change
-    if ((NowTime.Hour != PreviousTime.Hour) ||
-        (NowTime.Minute != PreviousTime.Minute))
-    {
-        timeChanged = true;
-    }
+    if (changeFlag == false) {
+        byte year = gui_get_year() - YEAR_OFFSET;
+        if (year != PreviousTime.Year) {
+            changeYear(NowTime, year);
+            //dateChanged = true;
+        }
+        byte month = gui_get_month();
+        if (month != PreviousTime.Month) {
+            changeMonth(NowTime, month);
+            //dateChanged = true;
+        }
+        byte day = gui_get_day();
+        if (day != PreviousTime.Day) {
+            // day must be adjusted also if either year (leap-year) or a month has changed
+            changeDay(NowTime, day);
+            //dateChanged = true;
+        }
 
-    if ((NowTime.Day != PreviousTime.Day) ||
-        (NowTime.Month != PreviousTime.Month) ||
-        (NowTime.Year != PreviousTime.Year))
-    {
-        dateChanged = true;
+        byte hour = gui_get_hour(TIME_ROLLER_IDX);
+        if (hour != PreviousTime.Hour) {
+            changeHour(NowTime, hour);
+            //timeChanged = true;
+        }
+
+        byte minute = gui_get_minute(TIME_ROLLER_IDX);
+        if (minute != PreviousTime.Minute) {
+            changeMinute(NowTime, minute);
+            //timeChanged = true;
+        }
+        // Check for Time change
+        if ((NowTime.Hour != PreviousTime.Hour) ||
+            (NowTime.Minute != PreviousTime.Minute))
+        {
+            timeChanged = true;
+        }
+
+        if ((NowTime.Day != PreviousTime.Day) ||
+            (NowTime.Month != PreviousTime.Month) ||
+            (NowTime.Year != PreviousTime.Year))
+        {
+            dateChanged = true;
+        }
     }
 
     PreviousTime = NowTime;
@@ -356,12 +361,11 @@ void displayClock(bool changeFlag=false) {
         }
     }
 
-    if (temperatureChanged) gui_set_temperature(CurrentTemperature);
     if (dateChanged) gui_set_date(YEAR_OFFSET + NowTime.Year, NowTime.Month, NowTime.Day);
-    if (timeChanged) gui_set_time(NowTime.Hour, NowTime.Minute);
+    if (timeChanged) gui_set_time(TIME_ROLLER_IDX, NowTime.Hour, NowTime.Minute);
 }
 
-void displayAlarm(byte index=1, bool changeFlag=false) {
+void displayAlarm(byte index, bool changeFlag=false) {
     /* ***************************************************** *
      * Display Alarm Clock
      *
@@ -388,24 +392,39 @@ void displayAlarm(byte index=1, bool changeFlag=false) {
        hh:mm AM Weekend
        Alarm 2      ON
        hh:mm 24 Once                                         */
-   /*
+
     AlarmTime alarm;            //create AlarmTime struct from Library
 
-    if (index == alarm2) {
-        alarm = Clock.readAlarm(alarm2);      // get the latest alarm2 values
-    } else {
-        alarm = Clock.readAlarm(alarm1);      // get the latest alarm1 values
+    assert ((index == alarm1) || (index == alarm2));
+    const RollerIndexes_t roller_idx = (index == alarm1)? ALARM_0_ROLLER_IDX : ALARM_1_ROLLER_IDX;
+    if (changeFlag == false) {
+        alarm.Second = 0;
+        alarm.Minute = gui_get_minute(roller_idx);
+        alarm.Hour = gui_get_hour(roller_idx);
+        alarm.AlarmMode = 0;      // 0=Daily
+        alarm.ClockMode = 2;      // 24h
+        alarm.Enabled = true; //gui_get_alarm_enabled()
+        alarm.EnabledDows = gui_get_alarm_enabled_dows(roller_idx);
+        // Check for Alarm change
+        if (alarm.Hour != PreviousAlarm[index].Hour){ changeFlag = true; }
+        if (alarm.Minute != PreviousAlarm[index].Minute){ changeFlag = true; }
+        if (alarm.Enabled != PreviousAlarm[index].Enabled) { changeFlag = true; }
+        if (alarm.EnabledDows != PreviousAlarm[index].EnabledDows) { changeFlag = true; }
+        if (changeFlag) {
+            Serial.print("Alarm changed - Enabled: ");
+            Serial.print(alarm.Enabled);
+            Serial.print(", Mode: ");
+            Serial.print(alarm.AlarmMode);
+            Serial.print(", EnabledDows: ");
+            Serial.println(alarm.EnabledDows,BIN);
+            Clock.setAlarm(alarm, index);
+        }
     }
-
-    // Check for Alarm change
-    if (alarm.Hour != PreviousAlarm.Hour){ changeFlag = true; }
-    if (alarm.Minute != PreviousAlarm.Minute){ changeFlag = true; }
-    if (alarm.AlarmMode != PreviousAlarm.AlarmMode) { changeFlag = true; }
-    if (alarm.EnabledDows != PreviousAlarm.EnabledDows) { changeFlag = true; }
 
     //Update Display - Only change display if change is detected
     if (changeFlag == true){
-        lcd.clear();
+        alarm = Clock.readAlarm(index);
+        /*lcd.clear();
         byte enabledDows1 = 0;
         byte enabledDows2 = 0;
 
@@ -423,39 +442,25 @@ void displayAlarm(byte index=1, bool changeFlag=false) {
           lcd.print("ON");
         } else {
           lcd.print("OFF");
-        }
+        }*/
 
         //Second row
-        lcd.setCursor(0,1);
+        /*lcd.setCursor(0,1);
         lcd.print(p2Digits(alarm.Hour));
         lcd.print(":");
         lcd.print(p2Digits(alarm.Minute));
-        lcd.print(" ");
-        switch (alarm.AlarmMode){
-            //0=Daily, 1=Weekday, 2=Weekend, 3=Once
-            case 0:
-                //Daily
-                lcd.setCursor(9,1);
-                printAlarmIndicators(0b11,  enabledDows1, enabledDows2);
-                break;
-            case 1:
-                //Weekday
-                lcd.print(" Weekday");
-                break;
-            case 2:
-                //Weekend
-                lcd.print(" Weekend");
-                break;
-            case 3:
-                //Once
-                lcd.print(" Once");
-                break;
-            default:
-                //do nothing
-                break;
-        }
-        PreviousAlarm = alarm;
-    }*/
+        lcd.print(" ");*/
+        gui_set_time(roller_idx, alarm.Hour, alarm.Minute);
+        gui_set_alarm_enabled_dows(roller_idx, alarm.Enabled, alarm.EnabledDows);
+        PreviousAlarm[index] = alarm;
+    }
+}
+
+void displayAll(bool changeFlag=false) {
+    displayTemperature(changeFlag);
+    displayClock(changeFlag);
+    displayAlarm(alarm1, changeFlag);
+    displayAlarm(alarm2, changeFlag);
 }
 
 void changeHour(DateTime &NowTime, byte Hour) {
@@ -1007,11 +1012,14 @@ void setup() {
         //Restart from power loss detected
         gui_show_datetime_view();
         Clock.clearOSFStatus();
+        Clock.resetClock();
+        Clock.resetAlarm(alarm1);
+        Clock.resetAlarm(alarm2);
         Serial.println("PowerLoss State");
     }
 
     //Display the clock
-    displayClock(true);
+    displayAll(true);
 
 
     //Debug code
@@ -1037,7 +1045,7 @@ void loop() {
             Serial.println("ClockState = default!!");
             break;
     }
-    displayClock();
+    displayAll();
 
     bool shouldMoveOn = ledMgr.shouldMoveOn();
     if (shouldMoveOn) {
