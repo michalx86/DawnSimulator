@@ -67,6 +67,7 @@ static lv_obj_t * arrow_up_widget = NULL;
 static lv_obj_t * arrow_down_widget = NULL;
 
 static lv_obj_t * temperature_label = NULL;
+static lv_obj_t* dow_labels[NUM_DOWS];
 static lv_obj_t* alarm_dow_status_buttons[NUM_DOWS][NUM_ALARMS];
 static lv_obj_t* alarm_time_labels[NUM_ALARMS];
 
@@ -257,8 +258,6 @@ void create_status_view(lv_obj_t* par_obj) {
             lv_obj_align(alarm_dow_status_buttons[i][j], alarm_dow_status_buttons[i-1][j], LV_ALIGN_OUT_RIGHT_MID, 3, 0);
         }
     }
-
-    lv_obj_t* dow_labels[NUM_DOWS];
 
     for (int i = 0; i < NUM_DOWS; i++) {
       dow_labels[i] = lv_label_create(par_obj, NULL);
@@ -473,12 +472,21 @@ void gui_set_temperature(float temperature) {
     lv_label_set_text_fmt(temperature_label, "%s%cC", buf, 127);
 }
 
-void gui_set_date(uint16_t year, uint16_t month, uint16_t day) {
+void gui_set_date(uint16_t year, uint16_t month, uint16_t day, uint16_t dow) {
   lv_label_set_text_fmt(date_label, "%04u-%02u-%02u", year, month, day);
   if ((year >= START_ROLLER_YEAR) && (year < START_ROLLER_YEAR + NUM_ROLLER_YEARS)) {
     lv_roller_set_selected(year_roller, year - START_ROLLER_YEAR, false);
     lv_roller_set_selected(month_roller, month - 1, false);
     lv_roller_set_selected(day_roller, day - 1, false);
+  }
+  for (int i = 0; i < NUM_DOWS; i++) {
+    uint16_t dow_idx = (i + 2 > 7)? 1 : i + 2;
+
+    lv_color_t bg_color = (dow_idx == dow)? LV_COLOR_GRAY : LV_COLOR_BLACK;
+    lv_color_t txt_color = (dow_idx == dow)? LV_COLOR_WHITE : DEFAULT_TXT_COLOR;
+    lv_obj_set_style_local_bg_opa(dow_labels[i], LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, LV_OPA_COVER);
+    lv_obj_set_style_local_bg_color(dow_labels[i], LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, bg_color);
+    lv_obj_set_style_local_text_color(dow_labels[i], LV_LABEL_PART_MAIN, LV_STATE_DEFAULT, txt_color);
   }
 }
 

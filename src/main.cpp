@@ -340,7 +340,7 @@ void displayClock(bool changeFlag=false) {
 
     PreviousTime = NowTime;
 
-    if (dateChanged) gui_set_date(YEAR_OFFSET + NowTime.Year, NowTime.Month, NowTime.Day);
+    if (dateChanged) gui_set_date(YEAR_OFFSET + NowTime.Year, NowTime.Month, NowTime.Day, NowTime.Dow);
     if (timeChanged) gui_set_time(TIME_ROLLER_IDX, NowTime.Hour, NowTime.Minute);
 }
 
