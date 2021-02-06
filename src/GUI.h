@@ -27,6 +27,9 @@ void gui_set_alarm_enabled_dows(RollerIndexes_t idx, bool enabled, uint8_t enabl
 bool gui_get_alarm_enabled(RollerIndexes_t idx);
 uint8_t gui_get_alarm_enabled_dows(RollerIndexes_t idx, bool from_status_view);
 
+void gui_set_led_dir(int dir);
+void gui_set_led_percent(int percent);
+
 void gui_show_datetime_view();
 
 #endif // GUI_h

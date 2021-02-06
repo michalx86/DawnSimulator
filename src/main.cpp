@@ -102,7 +102,6 @@
 #include "Button.h"                    // https://github.com/rmorenojr/Button
 #include <EEPROM.h>
 #include "LightProfile.h"
-#include "Lcd_I2C.h"
 #include "LedStripMgr.h"
 
 /* ***********************************************************
@@ -155,8 +154,6 @@ unsigned lightLevelAtBrightening = 0;
 boolean prevShouldMoveOn = false;
 
 float getTemperatureValue();
-void printLedStatus(int percent, int dir);
-void printAlarmIndicators(byte alarmEnabledStatus, byte enabledDows1, byte enabledDows2);
 void LedTaskLoop( void * parameter );
 
 void changeYear(DateTime &NowTime, byte Year);
@@ -174,7 +171,6 @@ LedStripMgr ledMgr(Led_R_Pin, Led_G_Pin, Led_B_Pin, Led_WW_Pin, Led_CW_Pin);
  *                    Hardware Definitions                   *
  * ********************************************************* */
 //TFT_eSPI tft = TFT_eSPI();  // Invoke custom library
-Lcd_I2C lcd;
 //NexText t0 = NexText(0,1,"t0");
 
 
@@ -210,14 +206,7 @@ Lcd_I2C lcd;
     Button MultiButton(MultiButton_Pin, BUTTON_MULTIKEY,true, DebouceTime, {300, 800, 1500, 2200, 3300}); // {200, 700, 1400, 2200, 3300});
 
     const int Button_Hold_Time = 3000;      // button hold length of time in ms
-    const int Alarm_View_Pause = 2000;      // View Alarm Length of time in ms
-    const unsigned flashInterval = 1000;         // Alarm flashing interval
 
-    //Alarm types:
-    const byte Daily=0;
-    const byte Weekday=1;
-    const byte Weekend=2;
-    const byte Once=3;
     //Clocks
     const byte alarm1=1;
     const byte alarm2=2;
@@ -226,32 +215,15 @@ Lcd_I2C lcd;
  *                      Global Variables                     *
  * ********************************************************* */
 
-    enum States {
-        PowerLoss,
-        ShowClock,
-        ShowAlarm1,
-        ShowAlarm2,
-        EditClock,
-        EditAlarm1,
-        EditAlarm2
-    };
 
-    States ClockState = ShowClock;
-    States PrevState = EditAlarm2;     // Used for debugging
-
-    byte HourType = 0;                // 0=AM/PM, 1=24hour - used in display alarm - to be deleted
     float CurrentTemperature;         // Maybe move as static variable under displayClock function
     unsigned long RunTime = 0;             // Used to track time between get temperature value
     unsigned long buttonHoldPrevTime = 0;  // Used to track button hold times
-    unsigned long AlarmRunTime = 0;
-    unsigned long lastClockLedPercentShownTime = 0;
     DateTime PreviousTime;            // Maybe move as static variable under displayClock function
     int PreviousLedLevelPercent = -1;
+    int PreviousLedDir = 0;
     AlarmTime PreviousAlarm[alarm2 + 1];          // Maybe move as static variable under displayAlarm function
-    byte EditHourType = 0;            // 0=AM, 1=PM, 2=24hour - used for edit only
-    byte cpIndex = 0;                 // Cursor Position Index - used for edit mode
     bool bHoldButtonFlag = false;     // used to prevent holdButton also activating clickButton
-    bool shouldShowPercent = false;
 
     // For ISR
     portMUX_TYPE mux = portMUX_INITIALIZER_UNLOCKED;
@@ -277,6 +249,34 @@ void displayTemperature(bool changeFlag=false) {
     }
     if (changeFlag) {
         gui_set_temperature(CurrentTemperature);
+    }
+}
+
+void displayArrow(bool changeFlag=false) {
+    // Check for LedLevel change
+    int dir = ledMgr.getDir();
+    if (dir != PreviousLedDir) {
+        PreviousLedDir = dir;
+        changeFlag = true;
+    }
+
+    //Update Display - Only change display if change is detected
+    if (changeFlag == true){
+        gui_set_led_dir(dir);
+    }
+}
+
+void displayPercent(bool changeFlag=false) {
+    // Check for LedLevel change
+    int percent = ledMgr.getPercent();
+    if (percent != PreviousLedLevelPercent) {
+        PreviousLedLevelPercent = percent;
+        changeFlag = true;
+    }
+
+    //Update Display - Only change display if change is detected
+    if (changeFlag == true){
+        gui_set_led_percent(percent);
     }
 }
 
@@ -340,27 +340,6 @@ void displayClock(bool changeFlag=false) {
 
     PreviousTime = NowTime;
 
-    int percent = 0;
-    if (shouldShowPercent) {
-        // Check for LedLevel change
-        percent = ledMgr.getPercent();
-        if (PreviousLedLevelPercent != percent) {
-          PreviousLedLevelPercent = percent;
-          changeFlag = true;
-        }
-    } else {
-        PreviousLedLevelPercent = -1;
-    }
-
-    //Update Display - Only change display if change is detected
-    if (changeFlag == true){
-        if (shouldShowPercent) {
-          printLedStatus(percent, ledMgr.getDir());
-        } else {
-          printAlarmIndicators(Clock.alarmStatus(),  Clock.readAlarm(alarm1).EnabledDows, Clock.readAlarm(alarm2).EnabledDows);
-        }
-    }
-
     if (dateChanged) gui_set_date(YEAR_OFFSET + NowTime.Year, NowTime.Month, NowTime.Day);
     if (timeChanged) gui_set_time(TIME_ROLLER_IDX, NowTime.Hour, NowTime.Minute);
 }
@@ -383,15 +362,6 @@ void displayAlarm(byte index, bool changeFlag=false) {
       bool Enabled;         // true/false
       }
      */
-    /* LCD alarm display pseudo code:
-       Alarm 1      ON
-       hh:mm AM Daily
-       Alarm 1      OFF
-       hh:mm PM Weekday
-       Alarm 1      ON
-       hh:mm AM Weekend
-       Alarm 2      ON
-       hh:mm 24 Once                                         */
 
     AlarmTime alarm;            //create AlarmTime struct from Library
 
@@ -440,6 +410,8 @@ void displayAlarm(byte index, bool changeFlag=false) {
 
 void displayAll(bool changeFlag=false) {
     displayTemperature(changeFlag);
+    displayArrow(changeFlag);
+    displayPercent(changeFlag);
     displayClock(changeFlag);
     displayAlarm(alarm1, changeFlag);
     displayAlarm(alarm2, changeFlag);
@@ -585,11 +557,6 @@ void ButtonClick(Button& b){
 }
 
 void ButtonHold(Button& b){
-    //Clock States:
-    // PowerLoss, ShowClock, ShowAlarm1, ShowAlarm2, Alarm, EditClock, EditAlarm1, EditAlarm2
-    // static unsigned long buttonHoldPrevTime = 0;
-
-    //Debug code to Serial monitor
     Serial.print("Button Hold - ");
     switch(b.keyValue()){
         case KEY_MODE:
@@ -678,71 +645,6 @@ byte CheckAlarmStatus(){
     }
 
     return flaggedAlarms;
-}
-
-void printAlarmIndicators(byte alarmEnabledStatus, byte enabledDows1, byte enabledDows2){
-    /* Returns:
-       0 - No alarms
-       1 - Alarm 1 enabled
-       2 - Alarm 2 enabled
-       3 - Both alarms enabled
-     */
-    static char dowLetters[] = {'-', 'P', 'W',  'S',  'C',  'P',  'S',  'N'};
-    for (byte i = 2; i <=8; i++) {
-        byte enabledStatus = alarmEnabledStatus;
-        byte dow = (i > 7)? 1 : i;
-
-        byte alarmEnabledOnDow = (enabledDows1 >> dow) & 1;
-        if (!alarmEnabledOnDow) {
-          enabledStatus &= 0b10;
-        }
-
-        alarmEnabledOnDow = (enabledDows2 >> dow) & 1;
-        if (!alarmEnabledOnDow) {
-          enabledStatus &= 0b01;
-        }
-        switch (enabledStatus){
-            case 0:
-                //No alarms
-                lcd.print(dowLetters[i-1]);
-                break;
-            case 1:
-                //alarm 1 enabled
-                lcd.write(LCD_CHAR_ALARM1); //cA1
-                break;
-            case 2:
-                //alarm 2 enabled
-                lcd.write(LCD_CHAR_ALARM2); //cA2
-                break;
-            case 3:
-                //both alarms enabled
-                lcd.write(LCD_CHAR_BOTH_ALARMS); //cBA
-                break;
-            default:
-                break;
-        }
-    }
-}
-
-void printLedStatus(int percent, int dir) {
-  lcd.print("  ");
-
-  if ((dir == 0)) {
-    lcd.print(' ');
-  } else if (dir == 1) {
-    lcd.write(LCD_CHAR_UP_ARROW);
-  } else {
-    lcd.write(LCD_CHAR_DOWN_ARROW);
-  }
-
-  if (percent < 100) {
-    lcd.write(' ');
-  }
-  if (percent < 10) {
-    lcd.write(' ');
-  }
-  lcd.print(percent);
-  lcd.write('%');
 }
 
 /* ***********************************************************
@@ -853,10 +755,6 @@ void setup() {
     Serial.print("Max Alarm LED value: ");
     printColorValue(maxLedValue);
 
-    /*          LCD Stuff           */
-    lcd.init();                      // initialize the lcd
-
-
     /*         Clock Stuff          */
     Clock.begin();
     //Clock.setInterruptCtrl(true);
@@ -891,7 +789,7 @@ void setup() {
         Clock.resetClock();
         Clock.resetAlarm(alarm1);
         Clock.resetAlarm(alarm2);
-        Serial.println("PowerLoss State");
+        Serial.println("PowerLoss Detected");
     }
 
     //Display the clock
@@ -908,29 +806,11 @@ void setup() {
  *                         Void Loop                         *
  * ********************************************************* */
 void loop() {
-    //if (ClockState != PrevState) { Serial.print("ClockState = ");Serial.println(ClockState); PrevState = ClockState;}
-
-    switch (ClockState){
-        case PowerLoss:
-            if (ClockState != PrevState) { Serial.println("ClockState = PowerLoss"); PrevState = ClockState;}
-            break;
-        case ShowClock:
-            if (ClockState != PrevState) { Serial.println("ClockState = ShowClock"); PrevState = ClockState;}
-            break;
-        default:
-            Serial.println("ClockState = default!!");
-            break;
-    }
     displayAll();
 
     bool shouldMoveOn = ledMgr.shouldMoveOn();
-    if (shouldMoveOn) {
-      shouldShowPercent = true;
-    } else {
-      if (prevShouldMoveOn) {
-        shouldShowPercent = false;
+    if ((!shouldMoveOn) && (prevShouldMoveOn)){
         log_d("Max Level reached at %d%%", ledMgr.getPercent());
-      }
     }
     prevShouldMoveOn = shouldMoveOn;
 

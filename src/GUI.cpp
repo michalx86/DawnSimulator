@@ -44,8 +44,6 @@ static char* roller_days_arr = NULL;
 static char* roller_hours_arr = NULL;
 static char* roller_minutes_arr = NULL;
 
-static lv_obj_t * label;
-
 static lv_style_t style_obj_black;
 static lv_style_t style_obj_title;
 static lv_style_t style_pressed;
@@ -58,12 +56,16 @@ LV_IMG_DECLARE(sun_img);
 LV_IMG_DECLARE(stars_img);
 
 // Date Time and Alarm roller widgets:
-lv_obj_t *hour_rollers[LAST_ROLLER_IDX];
-lv_obj_t *minute_rollers[LAST_ROLLER_IDX];
+static lv_obj_t *hour_rollers[LAST_ROLLER_IDX];
+static lv_obj_t *minute_rollers[LAST_ROLLER_IDX];
 
 // Status View widgets:
 static lv_obj_t * date_label = NULL;
 static lv_obj_t * time_label = NULL;
+static lv_obj_t * led_intensity_label = NULL;
+static lv_obj_t * arrow_up_widget = NULL;
+static lv_obj_t * arrow_down_widget = NULL;
+
 static lv_obj_t * temperature_label = NULL;
 static lv_obj_t* alarm_dow_status_buttons[NUM_DOWS][NUM_ALARMS];
 static lv_obj_t* alarm_time_labels[NUM_ALARMS];
@@ -81,8 +83,8 @@ static const lv_point_t valid_pos[NUM_TILES] = { { 0, 0 }, { 1, 0 }, { 2, 0 }, {
 static lv_obj_t *tileview = NULL;
 
 // Alarm Set View
-lv_obj_t *alarm_en_switch[NUM_ALARMS];
-lv_obj_t* alarm_dow_switches[NUM_DOWS][NUM_ALARMS];
+static lv_obj_t *alarm_en_switch[NUM_ALARMS];
+static lv_obj_t* alarm_dow_switches[NUM_DOWS][NUM_ALARMS];
 
 
 static void slider_event_cb(lv_obj_t * slider, lv_event_t event)
@@ -130,23 +132,6 @@ static void cpicker_event_cb(lv_obj_t * cpicker, lv_event_t event)
         lv_obj_set_style_local_value_str(cpicker, part_type, LV_STATE_DEFAULT, buf);
     }
 }
-
-static void roller_event_handler(lv_obj_t * obj, lv_event_t event)
-{
-    if(event == LV_EVENT_VALUE_CHANGED) {
-        static char buf[32];
-        lv_roller_get_selected_str(obj, buf, sizeof(buf));
-        lv_label_set_text_fmt(label, "%s\n", buf);
-    }
-}
-
-static void switch_event_handler(lv_obj_t * obj, lv_event_t event)
-{
-    if(event == LV_EVENT_VALUE_CHANGED) {
-      lv_label_set_text_fmt(label, "%s\n", lv_switch_get_state(obj) ? "On" : "Off");
-    }
-}
-
 
 void set_style_black(lv_obj_t *obj) {
     lv_obj_reset_style_list(obj, LV_OBJ_PART_MAIN);
@@ -200,11 +185,6 @@ void create_top_light_color_control_view(void) {
     lv_obj_set_style_local_transition_prop_4(light_temp_cpicker, LV_CPICKER_PART_KNOB, LV_STATE_DEFAULT, LV_STYLE_VALUE_OFS_X);
     lv_obj_set_style_local_transition_prop_5(light_temp_cpicker, LV_CPICKER_PART_KNOB, LV_STATE_DEFAULT, LV_STYLE_VALUE_OFS_Y);
     lv_obj_set_style_local_transition_prop_6(light_temp_cpicker, LV_CPICKER_PART_KNOB, LV_STATE_DEFAULT, LV_STYLE_VALUE_OPA);
-
-
-    label = lv_label_create(lv_scr_act(), NULL);
-    lv_label_set_text(label, "0");
-    lv_obj_set_pos(label, 30, 30);
 }
 
 lv_obj_t* create_custom_label(lv_obj_t* par_obj, lv_font_t* font, lv_color_t color) {
@@ -239,13 +219,16 @@ void create_status_view(lv_obj_t* par_obj) {
     date_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_SUBTITLE, DEFAULT_TXT_COLOR);
     lv_obj_align(date_label, NULL, LV_ALIGN_IN_TOP_LEFT, 10, 0);
 
-    lv_obj_t * led_intensity_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_SUBTITLE, DEFAULT_TXT_COLOR);
-    lv_label_set_text(led_intensity_label, "100%");
-    lv_obj_align(led_intensity_label, NULL, LV_ALIGN_IN_TOP_RIGHT, -10, 0);
+    led_intensity_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_SUBTITLE, DEFAULT_TXT_COLOR);
+    lv_obj_set_width(led_intensity_label, 60);
+    lv_obj_align(led_intensity_label, NULL, LV_ALIGN_IN_TOP_RIGHT, -15, 0);
 
-    lv_obj_t * arrow_yellow_widget = create_arrow_img(par_obj, led_intensity_label, &arrow_yellow_img);
-    lv_obj_t * arrow_blue_widget = create_arrow_img(par_obj, led_intensity_label, &arrow_blue_img);
-    lv_obj_set_hidden(arrow_blue_widget, true);
+    arrow_up_widget = create_arrow_img(par_obj, led_intensity_label, &arrow_yellow_img);
+    arrow_down_widget = create_arrow_img(par_obj, led_intensity_label, &arrow_blue_img);
+    lv_obj_align(arrow_up_widget, led_intensity_label, LV_ALIGN_OUT_LEFT_MID, -10, 0);
+    lv_obj_align(arrow_down_widget, led_intensity_label, LV_ALIGN_OUT_LEFT_MID, -10, 0);
+    lv_obj_set_hidden(arrow_up_widget, true);
+    lv_obj_set_hidden(arrow_down_widget, true);
 
     // LV_COLOR_MAKE(0xFF, 0x80, 0x00) - light orange - almost yellow
     // LV_COLOR_MAKE(0xDF, 0x50, 0x00) - orange
@@ -294,9 +277,7 @@ lv_obj_t* create_title(lv_obj_t* par_obj) {
 lv_obj_t* create_roller(lv_obj_t* par_obj, char* roller_arr) {
     lv_obj_t *roller = lv_roller_create(par_obj, NULL);
     lv_roller_set_options(roller, roller_arr, LV_ROLLER_MODE_INIFINITE);
-
     lv_roller_set_visible_row_count(roller, 4);
-    lv_obj_set_event_cb(roller, roller_event_handler);
   return roller;
 }
 
@@ -345,7 +326,6 @@ void create_date_time_set_view(lv_obj_t* par_obj) {
 
 lv_obj_t* create_switch(lv_obj_t* par_obj) {
     lv_obj_t *sw = lv_switch_create(par_obj, NULL);
-    lv_obj_set_event_cb(sw, switch_event_handler);
   return sw;
 }
 
@@ -585,6 +565,24 @@ uint8_t gui_get_alarm_enabled_dows(RollerIndexes_t idx, bool from_status_view) {
   }
   return enabledDows;
 }
+
+void gui_set_led_dir(int dir) {
+  bool show_up_arrow = false;
+  bool show_down_arrow = false;
+  if ((dir == 1)) {
+    show_up_arrow = true;
+  } else if (dir == -1) {
+    show_down_arrow = true;
+  }
+  lv_obj_set_hidden(arrow_up_widget, !show_up_arrow);
+  lv_obj_set_hidden(arrow_down_widget, !show_down_arrow);
+}
+
+void gui_set_led_percent(int percent) {
+  lv_label_set_text_fmt(led_intensity_label, "%d%%", percent);
+  lv_obj_align(led_intensity_label, NULL, LV_ALIGN_IN_TOP_RIGHT, -5, 0);
+}
+
 
 void gui_show_datetime_view() {
   lv_tileview_set_tile_act(tileview, valid_pos[TILE_DATETIME].x, valid_pos[TILE_DATETIME].y, false);

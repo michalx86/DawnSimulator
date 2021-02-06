@@ -1,4 +1,4 @@
-#include <Esp.h>+
+#include <Esp.h>
 #include "LedStripMgr.h"
 
 const unsigned ALARM_LIGHTENING_PERIOD_MS = 20 * 60 * 1000;
