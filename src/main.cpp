@@ -424,32 +424,6 @@ void displayAlarm(byte index, bool changeFlag=false) {
     //Update Display - Only change display if change is detected
     if (changeFlag == true){
         alarm = Clock.readAlarm(index);
-        /*lcd.clear();
-        byte enabledDows1 = 0;
-        byte enabledDows2 = 0;
-
-        // First row
-        lcd.setCursor(0,0);
-        if (index == alarm2) {
-            lcd.print("Alarm 2");
-            enabledDows2 = alarm.EnabledDows;
-        } else {
-            lcd.print("Alarm 1");
-            enabledDows1 = alarm.EnabledDows;
-        }
-        lcd.setCursor(13,0);
-        if (alarm.Enabled == true) {
-          lcd.print("ON");
-        } else {
-          lcd.print("OFF");
-        }*/
-
-        //Second row
-        /*lcd.setCursor(0,1);
-        lcd.print(p2Digits(alarm.Hour));
-        lcd.print(":");
-        lcd.print(p2Digits(alarm.Minute));
-        lcd.print(" ");*/
         gui_set_time(roller_idx, alarm.Hour, alarm.Minute);
         gui_set_alarm_enabled_dows(roller_idx, alarm.Enabled, alarm.EnabledDows);
         PreviousAlarm[index] = alarm;
@@ -463,124 +437,22 @@ void displayAll(bool changeFlag=false) {
     displayAlarm(alarm2, changeFlag);
 }
 
-void changeHour(DateTime &NowTime, byte Hour) {
-    Hour %= 24;
-    //Serial.print("24Hour = ");Serial.println(Hour);
-    NowTime.Hour = Hour;
-    Clock.write(NowTime);
-/*        case alarm1:
-            //alarm1
-            alarm.Hour = byte(Hour);
-            Clock.setAlarm(alarm,1);
-            break;
-        case alarm2:
-            //alarm2
-            alarm.Hour = Hour;
-            Clock.setAlarm(alarm,2);
-            break;
-        default:
-            //Clock
-            NowTime.Hour = Hour;
-            Clock.write(NowTime);
-            break;
-    }*/
-    //Serial.println("End changeHour");
-    //TODO: Error checking. Would return 0 for fail and 1 for OK
-}
-
 void changeMinute(DateTime &NowTime, byte Minute) {
     Minute %= 60;
     //Serial.println(Minute);
     NowTime.Minute = Minute;
     Clock.write(NowTime);
     //Serial.println("End changeMinute");
-
-    /*
-     *      = 1 Alarm1
-     *      = 2 Alarm2
-     */
-
-    /*switch (i){
-        case alarm1:
-            //alarm1
-            alarm = Clock.readAlarm(alarm1);
-            Minute = alarm.Minute;
-            break;
-        case alarm2:
-            //alarm2
-            alarm = Clock.readAlarm(alarm2);
-            Minute = alarm.Minute;
-            break;
-        default:
-            //Clock
-            NowTime = Clock.read();        // get the latest clock values
-            Minute = NowTime.Minute;
-            break;
-    }
-    if (increment == true) {
-        Minute += 1;
-        Minute %= 60;
-    } else {
-        Minute -= 1;
-        Minute %= 60;
-    }
-    // Note a byte is from 0-255, no negative number
-    // that's why we need an int here
-    if (Minute < 0) { Minute = 59; }
-    switch (i){
-        case clock0:
-            //Clock
-            NowTime.Minute = byte(Minute);
-            Clock.write(NowTime);
-            break;
-        case alarm1:
-            //alarm1
-            alarm.Minute = byte(Minute);
-            Clock.setAlarm(alarm,1);
-            break;
-        case alarm2:
-            //alarm2
-            alarm.Minute = byte(Minute);
-            Clock.setAlarm(alarm,2);
-            break;
-        default:
-            //Clock
-            NowTime.Minute = byte(Minute);
-            Clock.write(NowTime);
-            break;
-    }*/
     //TODO: Error checking. Would return 0 for fail and 1 for OK
 }
 
-void changeEnabledDows(byte i, byte dow) {
-    /*  Change Dows  1=Sun, 2=Mon,..., 7=Sat
-     *    i = 1 Alarm1
-     *      = 2 Alarm2
-     */
-
-    if ((i==1)||(i=2)){
-        AlarmTime alarm = Clock.readAlarm(i);
-
-        alarm.EnabledDows ^= (1 << dow); // invert only 1 bit representing this dow
-
-        Serial.print("changeEnabledDows: ");
-        Serial.println(alarm.EnabledDows,BIN);
-        Clock.setAlarm(alarm,i);
-    }//TODO: Error checking. Would return 0 for fail and 1 for OK
-}
-
-void changeYear(DateTime &NowTime, byte Year) {
-    if (Year < YEAR_MIN) { Year = YEAR_MAX; }
-    if (Year > YEAR_MAX){ Year = YEAR_MIN; }
-    NowTime.Year = Year;
-    changeDay(NowTime, NowTime.Day);
-}
-
-void changeMonth(DateTime &NowTime, byte Month) {
-    if (Month > 12) { Month = 1; }
-    if (Month < 1) { Month = 12; }
-    NowTime.Month = Month;
-    changeDay(NowTime, NowTime.Day);
+void changeHour(DateTime &NowTime, byte Hour) {
+    Hour %= 24;
+    //Serial.print("24Hour = ");Serial.println(Hour);
+    NowTime.Hour = Hour;
+    Clock.write(NowTime);
+    //Serial.println("End changeHour");
+    //TODO: Error checking. Would return 0 for fail and 1 for OK
 }
 
 void changeDay(DateTime &NowTime, byte Day) {
@@ -621,23 +493,19 @@ void changeDay(DateTime &NowTime, byte Day) {
     Clock.write(NowTime);
 }
 
-void toggleShowAlarm(byte i=1){
-    if ((i == 1)||(i == 2)){
-        if(i == 2){
-            ClockState = ShowAlarm2;
-        } else {
-            ClockState = ShowAlarm1;
-        }
-        AlarmTime alarm;
-        alarm = Clock.readAlarm(i);
-        alarm.Enabled = !alarm.Enabled;
-        Clock.setAlarm(alarm, i);
-        AlarmRunTime = millis();
-        displayAlarm(i, true);
-    }
-    //otherwise do nothing
+void changeMonth(DateTime &NowTime, byte Month) {
+    if (Month > 12) { Month = 1; }
+    if (Month < 1) { Month = 12; }
+    NowTime.Month = Month;
+    changeDay(NowTime, NowTime.Day);
 }
 
+void changeYear(DateTime &NowTime, byte Year) {
+    if (Year < YEAR_MIN) { Year = YEAR_MAX; }
+    if (Year > YEAR_MAX){ Year = YEAR_MIN; }
+    NowTime.Year = Year;
+    changeDay(NowTime, NowTime.Day);
+}
 
 void clearAlarms(void) {
     //Clear alarm flags
