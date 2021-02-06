@@ -49,9 +49,8 @@ static lv_obj_t * label;
 static lv_style_t style_obj_black;
 static lv_style_t style_obj_title;
 static lv_style_t style_pressed;
+static lv_style_t style_disabled;
 
-static lv_obj_t* alarm_dow_status_buttons[NUM_DOWS][NUM_ALARMS];
-static lv_obj_t* alarm_time_labels[NUM_ALARMS];
 
 LV_IMG_DECLARE(arrow_yellow_img);
 LV_IMG_DECLARE(arrow_blue_img);
@@ -66,6 +65,9 @@ lv_obj_t *minute_rollers[LAST_ROLLER_IDX];
 static lv_obj_t * date_label = NULL;
 static lv_obj_t * time_label = NULL;
 static lv_obj_t * temperature_label = NULL;
+static lv_obj_t* alarm_dow_status_buttons[NUM_DOWS][NUM_ALARMS];
+static lv_obj_t* alarm_time_labels[NUM_ALARMS];
+
 
 // Date Time View widgets:
 static lv_obj_t *year_roller = NULL;
@@ -77,6 +79,11 @@ static const int TILE_DATETIME = 0;
 static const int TILE_STATUS = 1;
 static const lv_point_t valid_pos[NUM_TILES] = { { 0, 0 }, { 1, 0 }, { 2, 0 }, {3, 0 } };
 static lv_obj_t *tileview = NULL;
+
+// Alarm Set View
+lv_obj_t *alarm_en_switch[NUM_ALARMS];
+lv_obj_t* alarm_dow_switches[NUM_DOWS][NUM_ALARMS];
+
 
 static void slider_event_cb(lv_obj_t * slider, lv_event_t event)
 {
@@ -223,6 +230,7 @@ lv_obj_t* create_checkable_button(lv_obj_t* par_obj) {
     lv_imgbtn_set_src(img_button, LV_BTN_STATE_CHECKED_PRESSED, &sun_img);
     lv_imgbtn_set_checkable(img_button, true);
     lv_obj_add_style(img_button, LV_IMGBTN_PART_MAIN, &style_pressed);
+    lv_obj_add_style(img_button, LV_IMGBTN_PART_MAIN, &style_disabled);
     lv_obj_align(img_button, NULL, LV_ALIGN_CENTER, 0, -40);
     return img_button;
 }
@@ -346,26 +354,25 @@ void create_alarm_set_view(lv_obj_t* par_obj, int alarm_no) {
   lv_label_set_text_fmt(title, "Alarm %d", alarm_no + 1);
   lv_obj_align(title, NULL, LV_ALIGN_IN_TOP_LEFT, 0, 0);
 
-  lv_obj_t *sw1 = create_switch(par_obj);
-  lv_obj_align(sw1, title, LV_ALIGN_OUT_RIGHT_MID, 40, 0);
+  alarm_en_switch[alarm_no] = create_switch(par_obj);
+  lv_obj_align(alarm_en_switch[alarm_no], title, LV_ALIGN_OUT_RIGHT_MID, 40, 0);
 
   // Day-of-Week switches
-  lv_obj_t* dow_switches[NUM_DOWS];
   lv_obj_t* dow_labels[NUM_DOWS];
   for (int i = 0; i < NUM_DOWS; i++) {
-    dow_switches[i] = create_switch(par_obj);
+    alarm_dow_switches[i][alarm_no] = create_switch(par_obj);
   }
-  lv_obj_set_pos(dow_switches[0], 40, 55);
+  lv_obj_set_pos(alarm_dow_switches[0][alarm_no], 40, 55);
   for (int i = 1; i < 5; i++) {
-    lv_obj_align(dow_switches[i], dow_switches[i-1], LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+    lv_obj_align(alarm_dow_switches[i][alarm_no], alarm_dow_switches[i-1][alarm_no], LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
   }
-  lv_obj_align(dow_switches[5], dow_switches[0], LV_ALIGN_OUT_RIGHT_MID, 40, 0);
-  lv_obj_align(dow_switches[6], dow_switches[5], LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+  lv_obj_align(alarm_dow_switches[5][alarm_no], alarm_dow_switches[0][alarm_no], LV_ALIGN_OUT_RIGHT_MID, 40, 0);
+  lv_obj_align(alarm_dow_switches[6][alarm_no], alarm_dow_switches[5][alarm_no], LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
 
   for (int i = 0; i < NUM_DOWS; i++) {
     dow_labels[i] = lv_label_create(par_obj, NULL);
     lv_label_set_text_fmt(dow_labels[i], "%s", dow_name_arr[i]);
-    lv_obj_align(dow_labels[i], dow_switches[i], LV_ALIGN_OUT_LEFT_MID, -5, 0);
+    lv_obj_align(dow_labels[i], alarm_dow_switches[i][alarm_no], LV_ALIGN_OUT_LEFT_MID, -5, 0);
   }
 
   // Time
@@ -468,6 +475,11 @@ void GUI(void)
   lv_style_set_image_recolor_opa(&style_pressed, LV_STATE_PRESSED, LV_OPA_30);
   lv_style_set_image_recolor(&style_pressed, LV_STATE_PRESSED, LV_COLOR_BLACK);
 
+  /*Darken the button when disabled*/
+  lv_style_init(&style_disabled);
+  lv_style_set_image_recolor_opa(&style_disabled, LV_STATE_DISABLED, LV_OPA_70);
+  lv_style_set_image_recolor(&style_disabled, LV_STATE_DISABLED, LV_COLOR_BLACK);
+
   set_style_black(lv_scr_act());
 
   create_top_light_color_control_view();
@@ -523,27 +535,52 @@ uint16_t gui_get_minute(RollerIndexes_t idx) {
   return lv_roller_get_selected(minute_rollers[idx]);
 }
 
-void gui_set_alarm_enabled_dows(RollerIndexes_t idx, bool alarmEnabled, uint8_t enabledDows) {
+void gui_set_alarm_enabled_dows(RollerIndexes_t idx, bool enabled, uint8_t enabledDows) {
   assert((idx == ALARM_0_ROLLER_IDX) || (idx == ALARM_1_ROLLER_IDX));
   int alarm_idx = idx - ALARM_0_ROLLER_IDX;
 
+  if (enabled) {
+    lv_switch_on(alarm_en_switch[alarm_idx], false);
+  } else {
+    lv_switch_off(alarm_en_switch[alarm_idx], false);
+  }
+
+  lv_btn_state_t btn_state_dow_disabled = enabled? LV_BTN_STATE_RELEASED : LV_BTN_STATE_DISABLED;
+  lv_btn_state_t btn_state_dow_enabled  = enabled? LV_BTN_STATE_CHECKED_RELEASED : LV_BTN_STATE_CHECKED_DISABLED;
   for (uint8_t i = 2; i <=8; i++) {
     uint8_t dow = (i > 7)? 1 : i;
 
-    uint8_t alarmEnabledOnDow = ((enabledDows >> dow) & 1) && alarmEnabled;
-    lv_imgbtn_set_state(alarm_dow_status_buttons[i-2][alarm_idx], alarmEnabledOnDow? LV_BTN_STATE_CHECKED_RELEASED : LV_BTN_STATE_RELEASED);
+    uint8_t alarmEnabledOnDow = ((enabledDows >> dow) & 1);
+    lv_imgbtn_set_state(alarm_dow_status_buttons[i-2][alarm_idx], alarmEnabledOnDow? btn_state_dow_enabled : btn_state_dow_disabled);
+
+    if (alarmEnabledOnDow) {
+      lv_switch_on(alarm_dow_switches[i-2][alarm_idx], false);
+    } else {
+      lv_switch_off(alarm_dow_switches[i-2][alarm_idx], false);
+    }
   }
 }
 
-uint8_t gui_get_alarm_enabled_dows(RollerIndexes_t idx) {
+bool gui_get_alarm_enabled(RollerIndexes_t idx) {
+  assert((idx == ALARM_0_ROLLER_IDX) || (idx == ALARM_1_ROLLER_IDX));
+  int alarm_idx = idx - ALARM_0_ROLLER_IDX;
+  return lv_switch_get_state(alarm_en_switch[alarm_idx]);
+}
+
+uint8_t gui_get_alarm_enabled_dows(RollerIndexes_t idx, bool from_status_view) {
   assert((idx == ALARM_0_ROLLER_IDX) || (idx == ALARM_1_ROLLER_IDX));
   int alarm_idx = idx - ALARM_0_ROLLER_IDX;
   uint8_t enabledDows = 0;
 
   for (uint8_t i = 2; i <=8; i++) {
     uint8_t dow = (i > 7)? 1 : i;
-    lv_btn_state_t state = lv_imgbtn_get_state(alarm_dow_status_buttons[i-2][alarm_idx]);
-    uint8_t alarmEnabledOnDow = ((state == LV_BTN_STATE_CHECKED_RELEASED) || (state == LV_BTN_STATE_CHECKED_PRESSED))? 1 : 0;
+    uint8_t alarmEnabledOnDow = false;
+    if (from_status_view) {
+      lv_btn_state_t state = lv_imgbtn_get_state(alarm_dow_status_buttons[i-2][alarm_idx]);
+      alarmEnabledOnDow = ((state == LV_BTN_STATE_CHECKED_RELEASED) || (state == LV_BTN_STATE_CHECKED_PRESSED) || (state == LV_BTN_STATE_CHECKED_DISABLED))? 1 : 0;
+    } else {
+      alarmEnabledOnDow = lv_switch_get_state(alarm_dow_switches[i-2][alarm_idx]);
+    }
     enabledDows += alarmEnabledOnDow << dow;
   }
   return enabledDows;

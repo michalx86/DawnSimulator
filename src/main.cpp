@@ -403,13 +403,21 @@ void displayAlarm(byte index, bool changeFlag=false) {
         alarm.Hour = gui_get_hour(roller_idx);
         alarm.AlarmMode = 0;      // 0=Daily
         alarm.ClockMode = 2;      // 24h
-        alarm.Enabled = true; //gui_get_alarm_enabled()
-        alarm.EnabledDows = gui_get_alarm_enabled_dows(roller_idx);
+        alarm.Enabled = gui_get_alarm_enabled(roller_idx);
         // Check for Alarm change
         if (alarm.Hour != PreviousAlarm[index].Hour){ changeFlag = true; }
         if (alarm.Minute != PreviousAlarm[index].Minute){ changeFlag = true; }
         if (alarm.Enabled != PreviousAlarm[index].Enabled) { changeFlag = true; }
-        if (alarm.EnabledDows != PreviousAlarm[index].EnabledDows) { changeFlag = true; }
+
+        for (int i = 0; i <= 1; i++) {
+            bool from_status_view = i;
+            alarm.EnabledDows = gui_get_alarm_enabled_dows(roller_idx, from_status_view);
+            if (alarm.EnabledDows != PreviousAlarm[index].EnabledDows) {
+                changeFlag = true;
+                break;
+            }
+        }
+
         if (changeFlag) {
             Serial.print("Alarm changed - Enabled: ");
             Serial.print(alarm.Enabled);

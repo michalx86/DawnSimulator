@@ -15,16 +15,17 @@ void loop_gui();
 void gui_set_temperature(float temperature);
 
 void gui_set_date(uint16_t year, uint16_t month, uint16_t day);
-
 uint16_t gui_get_year();
 uint16_t gui_get_month();
 uint16_t gui_get_day();
+
 void gui_set_time(RollerIndexes_t idx, uint16_t hour, uint16_t minute);
 uint16_t gui_get_hour(RollerIndexes_t idx);
 uint16_t gui_get_minute(RollerIndexes_t idx);
 
-void gui_set_alarm_enabled_dows(RollerIndexes_t idx, bool alarmEnabled, uint8_t enabledDows);
-uint8_t gui_get_alarm_enabled_dows(RollerIndexes_t idx);
+void gui_set_alarm_enabled_dows(RollerIndexes_t idx, bool enabled, uint8_t enabledDows);
+bool gui_get_alarm_enabled(RollerIndexes_t idx);
+uint8_t gui_get_alarm_enabled_dows(RollerIndexes_t idx, bool from_status_view);
 
 void gui_show_datetime_view();
 
