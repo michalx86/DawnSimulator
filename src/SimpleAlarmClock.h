@@ -144,7 +144,7 @@ class SimpleAlarmClock
 
     byte setAlarm(const AlarmTime&, byte alarmSelected);
                                          /* Set the alarm values as AlarmTime struct          */
-                                         /* Parameters:
+                                         /* Parameters:                                       */
                                          /*   AlarmTime - structure as AlarmTime              */
                                          /*   alarmSelected - 1 or 2 (alarm 1 or alarm2)      */
                                          /* Returns 0=fail                                    */

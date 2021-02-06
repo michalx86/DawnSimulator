@@ -297,14 +297,14 @@ void SimpleAlarmClock::begin(void){
      *          Determine the RTC year
      * *************************************** */
     // First check the Century bit
-    byte i = readByte(0x05, _byteValue);
+    readByte(0x05, _byteValue);
     // i used for future error checking
 
     // bit 7 of month register 0x05 indicates the century
     if (_byteValue & _BV(7)) { year += 100; }
 
     // Read year from register 0x06
-    i = readByte(0x06, _byteValue);
+    readByte(0x06, _byteValue);
     // i used for future error checking
 
     year += bcd2bin(_byteValue);
@@ -823,7 +823,7 @@ byte SimpleAlarmClock::nextAlarmDay(byte _AlarmMode, byte _ClockMode, byte Enabl
      ****************************************************************** */
     int CurrentX;
     int AlarmX;
-    byte dayReturn;
+    byte dayReturn = 0;
     DateTime currentTime;
     currentTime = read();
     //These are not actual times, but are useful for comparison purposes
@@ -981,7 +981,7 @@ void SimpleAlarmClock::setBatteryBackedSquareWave(bool Enable){
      ****************************************************************** */
     byte _byteValue;
     _byteValue = getCtrlRegister();
-    if (Enable = true) {
+    if (Enable == true) {
         _byteValue |= (1<<6);  //set bit to one
         BBSQW = 1;
     } else {
@@ -1062,7 +1062,7 @@ void SimpleAlarmClock::setInterruptCtrl(bool Enable){
      ****************************************************************** */
     byte _byteValue;
     _byteValue = getCtrlRegister();
-    if (Enable = true) {
+    if (Enable == true) {
         _byteValue |= (1<<2);  //set bit to one
     } else {
         _byteValue &= ~(1<<2); //set bit to zero
@@ -1260,10 +1260,10 @@ byte SimpleAlarmClock::setMemAlarm(const AlarmTime &alarm_i, byte alarmSelected)
         _byteValue[1] = bin2bcd(alarm_i.Hour) & 0B00111111;  //A1M3=0,12/24=0
     } else if (alarm_i.ClockMode == 0){
         //AM
-        _byteValue[1] = bin2bcd(alarm_i.Hour) & 0B01011111 | (1 << 6);  //A1M3=0,12/24=1,AM/PM=0
+        _byteValue[1] = (bin2bcd(alarm_i.Hour) & 0B01011111) | (1 << 6);  //A1M3=0,12/24=1,AM/PM=0
     } else {
         //PM
-        _byteValue[1] = bin2bcd(alarm_i.Hour) & 0B01111111 | (3 << 5);  //A1M3=0,12/24=1,AM/PM=1
+        _byteValue[1] = (bin2bcd(alarm_i.Hour) & 0B01111111) | (3 << 5);  //A1M3=0,12/24=1,AM/PM=1
     }
 
     //DOW Byte
