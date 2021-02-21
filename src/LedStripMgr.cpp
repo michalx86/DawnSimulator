@@ -66,10 +66,13 @@ Color_t LedStripMgr::getMaxValue() {
   return retVal;
 }
 
-void LedStripMgr::setMaxValue(Color_t value) {
+void LedStripMgr::setMaxValue(Color_t value, LightProfileName profileName) {
   portENTER_CRITICAL(&mux);
-  alarmLightComposite.setMaxValue(value);
-  switchLightComposite.setMaxValue(value);
+  switch (profileName) {
+    case LightProfileName::Alarm  : alarmLightComposite.setMaxValue(value); break;
+    case LightProfileName::Switch : switchLightComposite.setMaxValue(value); break;
+    default : break;
+  }
   portEXIT_CRITICAL(&mux);
 }
 
@@ -89,25 +92,21 @@ void LedStripMgr::setDirAndProfile(int dir, LightProfileName profileName) {
   }
 }
 
-void LedStripMgr::beginSettingMaxValue() {
+void LedStripMgr::transitionTo(Color_t toColor) {
   portENTER_CRITICAL(&mux);
   stepDir = 1;
+  auto fromColor = lightComposite->getCurrentValue();
   lightComposite = &switchLightComposite;
   lightComposite->setLevel(0);
-  lightComposite->resetMaxValue();
-  lightComposite->setSourceValue(Color_t {});
+  lightComposite->setSourceValue(fromColor);
+  lightComposite->setMaxValue(toColor);
+  Color_t srcVal = lightComposite->getSourceValue();
+  Color_t trgVal = lightComposite->getTargetValue();
+  log_d("New level: %u, sourceValue: [%u,%u,%u,%u,%u], targetValue: [%u,%u,%u,%u,%u]", lightComposite->getLevel(), srcVal[0], srcVal[1], srcVal[2], srcVal[3], srcVal[4], trgVal[0], trgVal[1], trgVal[2], trgVal[3], trgVal[4]);
   portEXIT_CRITICAL(&mux);
 }
 
-void LedStripMgr::finishSettingMaxValue() {
-  portENTER_CRITICAL(&mux);
-  stepDir = 0;
-  // TODO: When setting max values is separated, this should be removed
-  Color_t value = lightComposite->getCurrentValue();
-  setMaxValue(value);
-  lightComposite->setLevelToMax();
-  portEXIT_CRITICAL(&mux);
-}
+
 
 /*int cnt = 0;
 void LedStripMgr::handleSwitch() {
@@ -159,6 +158,9 @@ bool LedStripMgr::changeLight(unsigned long timeSinceLastLightChange) {
   # Private
   ###############################################################*/
 void LedStripMgr::ledWrite(LED_COLOR color, unsigned val) {
+  if (val > DUTY_MAX) {
+    log_e("Component [%u] out of range: %u", color, val);
+  }
   ledcWrite(LEDC_CHANNEL_0 + color, val);
 }
 

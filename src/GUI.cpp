@@ -55,6 +55,11 @@ LV_IMG_DECLARE(arrow_blue_img);
 LV_IMG_DECLARE(sun_img);
 LV_IMG_DECLARE(stars_img);
 
+// Color control view
+static lv_obj_t * brightness_slider = NULL;
+static lv_obj_t * hsv_cpicker = NULL;
+static lv_obj_t * light_temp_cpicker = NULL;
+
 // Date Time and Alarm roller widgets:
 static lv_obj_t *hour_rollers[LAST_ROLLER_IDX];
 static lv_obj_t *minute_rollers[LAST_ROLLER_IDX];
@@ -108,6 +113,10 @@ static void cpicker_event_cb(lv_obj_t * cpicker, lv_event_t event)
             if (mode == old_mode) {
                 return;
             } else {
+                // if ((cpicker == hsv_cpicker) && (mode == LV_CPICKER_COLOR_MODE_VALUE)) {
+                //     mode = LV_CPICKER_COLOR_MODE_HUE;
+                //     lv_cpicker_set_color_mode(cpicker, mode);
+                // }
                 old_mode = mode;
             }
         }
@@ -140,7 +149,7 @@ void set_style_black(lv_obj_t *obj) {
 }
 
 void create_top_light_color_control_view(void) {
-    lv_obj_t * brightness_slider = lv_slider_create(lv_scr_act(), NULL);
+    brightness_slider = lv_slider_create(lv_scr_act(), NULL);
     lv_obj_set_pos(brightness_slider, SCREEN_MARGIN + 20, SCREEN_MARGIN);
     lv_obj_set_size(brightness_slider, SLIDER_WIDTH, SLIDER_LENGTH);
     lv_obj_set_event_cb(brightness_slider, slider_event_cb);
@@ -157,7 +166,7 @@ void create_top_light_color_control_view(void) {
     lv_obj_set_style_local_transition_prop_5(brightness_slider, LV_SLIDER_PART_KNOB, LV_STATE_DEFAULT, LV_STYLE_VALUE_OFS_X);
     lv_obj_set_style_local_transition_prop_6(brightness_slider, LV_SLIDER_PART_KNOB, LV_STATE_DEFAULT, LV_STYLE_VALUE_OPA);
 
-    lv_obj_t * hsv_cpicker = lv_cpicker_create(lv_scr_act(), NULL);
+    hsv_cpicker = lv_cpicker_create(lv_scr_act(), NULL);
     lv_obj_set_pos(hsv_cpicker, SCREEN_WIDTH - (SLIDER_LENGTH + HSV_CPICKER_SIZE)/2 - SCREEN_MARGIN, SCREEN_HEIGHT - HSV_CPICKER_SIZE- SCREEN_MARGIN);
     lv_obj_set_size(hsv_cpicker, 160, 160);
     lv_obj_set_event_cb(hsv_cpicker, cpicker_event_cb);
@@ -169,7 +178,7 @@ void create_top_light_color_control_view(void) {
     lv_obj_set_style_local_transition_time(hsv_cpicker, LV_CPICKER_PART_MAIN, LV_STATE_DEFAULT, 300);
     lv_obj_set_style_local_transition_prop_6(hsv_cpicker, LV_CPICKER_PART_MAIN, LV_STATE_DEFAULT, LV_STYLE_VALUE_OPA);
 
-    lv_obj_t * light_temp_cpicker = lv_cpicker_create(lv_scr_act(), NULL);
+    light_temp_cpicker = lv_cpicker_create(lv_scr_act(), NULL);
     lv_cpicker_set_type(light_temp_cpicker, LV_CPICKER_TYPE_RECT);
     lv_obj_set_pos(light_temp_cpicker, SCREEN_WIDTH - SLIDER_LENGTH - SCREEN_MARGIN, SCREEN_MARGIN);
     lv_obj_set_size(light_temp_cpicker, SLIDER_LENGTH, SLIDER_WIDTH);
@@ -594,6 +603,176 @@ void gui_set_led_percent(int percent) {
 
 void gui_show_datetime_view() {
   lv_tileview_set_tile_act(tileview, valid_pos[TILE_DATETIME].x, valid_pos[TILE_DATETIME].y, false);
+}
+
+
+#define log_e(...)
+#define COLOR_NORMAL_VALUE 255
+void gui_set_color(Color_t color) {
+  lv_color_hsv_t hsv;
+  hsv.h = 0;
+  hsv.s = 0;
+  hsv.v = 0;
+  uint16_t brightness = 0;
+  uint16_t white_temp = 50;
+
+  for (int i = 0; i < LED_LAST; i++) {
+    if (color[i] > brightness) {
+      brightness = color[i];
+    }
+  }
+  log_e("brightnes: %u", brightness);
+
+  uint32_t col_normalized[LED_LAST];
+  if (brightness > 0) {
+    for (int i = 0; i < LED_LAST; i++) {
+      col_normalized[i] = color[i] * COLOR_NORMAL_VALUE / brightness;
+    }
+    log_e("col_norm: [%u, %u, %u, %u, %u]",col_normalized[LED_R], col_normalized[LED_G], col_normalized[LED_B], col_normalized[LED_WW], col_normalized[LED_CW]);
+
+    hsv = lv_color_rgb_to_hsv(col_normalized[LED_R], col_normalized[LED_G], col_normalized[LED_B]);
+    log_e("hsv: [%u, %u, %u]",hsv.h, hsv.s, hsv.v);
+
+    uint32_t white_max = (col_normalized[LED_WW] > col_normalized[LED_CW])? col_normalized[LED_WW] : col_normalized[LED_CW];
+    if (white_max > 0) {
+      if (col_normalized[LED_CW] < col_normalized[LED_WW]) {
+        white_temp = 99 - col_normalized[LED_CW] * 50 / col_normalized[LED_WW];
+      } else {
+        white_temp = col_normalized[LED_WW] * 50 / col_normalized[LED_CW];
+      }
+    }
+    log_e("white_max: %u, white_temp: %u",white_max, white_temp);
+
+    if (white_max == COLOR_NORMAL_VALUE) {
+      hsv.s /= 2;
+    } else {
+      hsv.s =  (COLOR_NORMAL_VALUE - white_max) * 50 / COLOR_NORMAL_VALUE + 49;
+    }
+  }
+
+  brightness = brightness * 100 / DUTY_MAX;
+  lv_slider_set_value(brightness_slider, brightness, false);
+  lv_cpicker_set_hsv(hsv_cpicker, hsv);
+  lv_cpicker_set_saturation(light_temp_cpicker, white_temp);
+}
+
+/**
+ * Convert a HSV color to RGB
+ * @param h hue [0..359]
+ * @param s saturation [0..100]
+ * @param v value [0..100]
+ * @return the given RGB color
+ */
+Color_t hsv_to_rgb(uint16_t h, uint8_t s, uint8_t v)
+{
+    Color_t retColor;
+    h = (uint32_t)((uint32_t)h * 255) / 360;
+    s = (uint16_t)((uint16_t)s * 255) / 100;
+    v = (uint16_t)((uint16_t)v * 255) / 100;
+
+    uint8_t r, g, b;
+
+    uint8_t region, remainder, p, q, t;
+
+    if(s == 0) {
+        retColor[LED_R] = retColor[LED_G] = retColor[LED_B] = v;
+        return retColor;
+    }
+
+    region    = h / 43;
+    remainder = (h - (region * 43)) * 6;
+
+    p = (v * (255 - s)) >> 8;
+    q = (v * (255 - ((s * remainder) >> 8))) >> 8;
+    t = (v * (255 - ((s * (255 - remainder)) >> 8))) >> 8;
+
+    switch(region) {
+        case 0:
+            r = v;
+            g = t;
+            b = p;
+            break;
+        case 1:
+            r = q;
+            g = v;
+            b = p;
+            break;
+        case 2:
+            r = p;
+            g = v;
+            b = t;
+            break;
+        case 3:
+            r = p;
+            g = q;
+            b = v;
+            break;
+        case 4:
+            r = t;
+            g = p;
+            b = v;
+            break;
+        default:
+            r = v;
+            g = p;
+            b = q;
+            break;
+    }
+
+    retColor[LED_R] = r;
+    retColor[LED_G] = g;
+    retColor[LED_B] = b;
+    return retColor;
+  }
+
+
+Color_t gui_get_color() {
+  Color_t ret_color;
+  uint16_t brightness = lv_slider_get_value(brightness_slider);
+  lv_color_hsv_t hsv =lv_cpicker_get_hsv(hsv_cpicker);
+  uint16_t light_temp = lv_cpicker_get_saturation(light_temp_cpicker);
+
+  if (light_temp > 99) light_temp = 99;
+  if (hsv.s > 99) hsv.s = 99;
+
+  uint16_t white_value = 0;
+  if (hsv.s < 50) {
+    //white_value = (50 - hsv.s) * 255 / 50;
+    //hsv.s = 0;
+    white_value = DUTY_MAX;
+    hsv.s *= 2;
+  } else {
+    //hsv.s = (hsv.s - 49) * 2 - 1;
+    white_value = (99 - hsv.s) * DUTY_MAX / 50;
+    hsv.s = 99;
+  }
+  //log_e("%d, %d",light_temp, white_value);
+
+  ret_color = hsv_to_rgb(hsv.h, hsv.s, hsv.v);
+  ret_color[LED_R] = ret_color[LED_R] * DUTY_MAX / 255;
+  ret_color[LED_G] = ret_color[LED_G] * DUTY_MAX / 255;
+  ret_color[LED_B] = ret_color[LED_B] * DUTY_MAX / 255;
+
+  uint16_t ww = white_value;
+  uint16_t cw = white_value;
+  if (light_temp < 50) {
+    ww = ww * light_temp / 50;
+  } else {
+    cw = cw * (99 - light_temp) / 50;
+  }
+
+  ret_color[LED_WW] = ww;
+  ret_color[LED_CW] = cw;
+
+  if (brightness < 100) {
+    ret_color[LED_R] = ret_color[LED_R] * brightness / 100;
+    ret_color[LED_G] = ret_color[LED_G] * brightness / 100;
+    ret_color[LED_B] = ret_color[LED_B] * brightness / 100;
+    ret_color[LED_WW] = ret_color[LED_WW] * brightness / 100;
+    ret_color[LED_CW] = ret_color[LED_CW] * brightness / 100;
+  }
+
+  return ret_color;
 }
 
 void setup_gui() {

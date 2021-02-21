@@ -1,6 +1,8 @@
 #ifndef GUI_h
 #define GUI_h
 
+#include "utils.h"
+
 enum RollerIndexes_t {
   TIME_ROLLER_IDX,
   ALARM_0_ROLLER_IDX,
@@ -31,5 +33,7 @@ void gui_set_led_dir(int dir);
 void gui_set_led_percent(int percent);
 
 void gui_show_datetime_view();
+void gui_set_color(Color_t color);
+Color_t gui_get_color();
 
 #endif // GUI_h

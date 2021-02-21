@@ -2,7 +2,7 @@
 ||
 || @file	Button.cpp
 || @version 1.1
-|| @author	Alexander Brevig	<alexanderbrevig@gmail.com>        
+|| @author	Alexander Brevig	<alexanderbrevig@gmail.com>
 || @url	http://alexanderbrevig.com
 ||
 || @description
@@ -12,7 +12,7 @@
 || #
 ||
 || @revisions
-|| | 09_15_2018 v1.1 Added double-click callback method 
+|| | 09_15_2018 v1.1 Added double-click callback method
 || |                 by Ricardo Moreno https://github.com/rmorenojr/Button
 || #
 ||
@@ -27,7 +27,7 @@
 || @constructor
 || | Set the initial state of this button
 || #
-|| 
+||
 || @parameter buttonPin  sets the pin that this switch is connected to
 || @parameter buttonMode indicates BUTTON_PULLUP or BUTTON_PULLDOWN resistor
 */
@@ -38,7 +38,7 @@ Button::Button(uint8_t buttonPin, uint8_t buttonMode, bool _debounceMode, int _d
 || @constructor
 || | Set the initial state of this button
 || #
-|| 
+||
 || @parameter buttonPin  sets the pin that this switch is connected to
 || @parameter buttonMode in case of BUTTON_MULTIKEY it is expected that _buttonLimits vector is defined
 || @parameter _debounceMode
@@ -59,10 +59,10 @@ Button::Button(uint8_t buttonPin, uint8_t buttonMode, bool _debounceMode, int _d
 Button::Button(uint8_t buttonPin, uint8_t buttonMode, bool _debounceMode, int _debounceDuration, std::vector<uint32_t> _buttonLimits) {
   pin=buttonPin;
   pinMode(pin,INPUT);
-  
+
   switch (buttonMode) {
     case BUTTON_PULLDOWN:
-      pulldown(); 
+      pulldown();
       break;
     case BUTTON_PULLUP:
     case BUTTON_PULLUP_INTERNAL:
@@ -106,7 +106,7 @@ Button::Button(uint8_t buttonPin, uint8_t buttonMode, bool _debounceMode, int _d
 void Button::pullup(uint8_t buttonMode)
 {
   mode=BUTTON_PULLUP;
-  if (buttonMode == BUTTON_PULLUP_INTERNAL) 
+  if (buttonMode == BUTTON_PULLUP_INTERNAL)
   {
 	  digitalWrite(pin,HIGH);
   }
@@ -126,16 +126,17 @@ void Button::pulldown(void)
 || @description
 || | Read and write states; issue callbacks
 || #
-|| 
+||
 || @return true if button is pressed
 */
 void Button::process(void)
 {
   //save the previous value
   auto previousButtonState = currentButtonState;
+  uint16_t pinValue = 0;
 
   if (mode==BUTTON_MULTIKEY) {
-    auto pinValue = analogRead(pin);
+    pinValue = analogRead(pin);
     for (currentButtonState = 0; currentButtonState < buttonLimits.size(); currentButtonState++) {
       if ( pinValue < buttonLimits[currentButtonState]) {
         break;
@@ -144,14 +145,17 @@ void Button::process(void)
   } else {
     currentButtonState = (digitalRead(pin) == mode);
   }
-  
+
   //handle state changes
   if (currentButtonState != previousButtonState)
   {
-    // Serial.print("state changed: ");
+    // Serial.print("Key state changed - pinValue: ");
+    // Serial.print(pinValue);
+    // Serial.print(", new state: ");
     // Serial.println(currentButtonState);
+
     debounceStartTime = millis();
-    return;  
+    return;
   }
   else
   {
@@ -169,10 +173,13 @@ void Button::process(void)
       // not enough time has passed; ignore
       return;
     }
-    
+
     if (currentButtonState < buttonLimits.size())  // is currently pressed...
     {
       if (pressedStartTime == -1) {  // ...and was NOT pressed up till now => the state changed to PRESSED
+        // Serial.print("Key pressed - pinValue: ");
+        // Serial.println(pinValue);
+
         numberOfPresses++;
         latchedKey = currentButtonState;
         if (cb_onPress) { cb_onPress(*this); }   //fire the onPress event
@@ -182,14 +189,14 @@ void Button::process(void)
       } else {
         changed = false;
       }
-    } 
+    }
     else // is NOT currently pressed...
     {
       if (pressedStartTime != -1) { // ...and was pressed up till now => the state changed to RELEASED
         if (cb_onRelease) { cb_onRelease(*this); } //fire the onRelease event
         if (cb_onClick) { cb_onClick(*this); }   //fire the onClick event AFTER the onRelease
         //reset states (for timing and for event triggering)
-        
+
         //check for double-click
         unsigned interval = millis() - previouspressedStartTime;
         if (interval <= doubleclickThreshold) {
@@ -206,15 +213,15 @@ void Button::process(void)
         changed = false;
       }
     }
-    
+
     //should we trigger an onHold event?
-    if (pressedStartTime!=-1 && !triggeredHoldEvent) 
+    if (pressedStartTime!=-1 && !triggeredHoldEvent)
     {
-      if (millis()-pressedStartTime > holdEventThreshold) 
-      { 
-        if (cb_onHold) 
-        { 
-          cb_onHold(*this); 
+      if (millis()-pressedStartTime > holdEventThreshold)
+      {
+        if (cb_onHold)
+        {
+          cb_onHold(*this);
           triggeredHoldEvent = true;
         }
       }
@@ -226,7 +233,7 @@ void Button::process(void)
 || @description
 || | Return the bitRead(state,CURRENT) of the switch
 || #
-|| 
+||
 || @return true if button is pressed
 */
 bool Button::isPressed(bool proc)
@@ -239,7 +246,7 @@ bool Button::isPressed(bool proc)
 || @description
 || | Return the bitRead(state,CURRENT) of the switch
 || #
-|| 
+||
 || @return true if button is pressed
 */
 bool Button::isDoubleClicked(bool proc)
@@ -288,15 +295,15 @@ bool Button::uniquePress()
 || | This will clear the counter for next iteration and thus return true once
 || #
 */
-bool Button::held(unsigned int time /*=0*/) 
+bool Button::held(unsigned int time /*=0*/)
 {
   process();
   unsigned int threshold = time ? time : holdEventThreshold; //use holdEventThreshold if time == 0
 	//should we trigger a onHold event?
-  if (pressedStartTime!=-1 && !triggeredHoldEvent) 
+  if (pressedStartTime!=-1 && !triggeredHoldEvent)
   {
-    if (millis()-pressedStartTime > threshold) 
-    { 
+    if (millis()-pressedStartTime > threshold)
+    {
       triggeredHoldEvent = true;
       return true;
     }
@@ -310,9 +317,9 @@ bool Button::held(unsigned int time /*=0*/)
 || | Check to see if the button has been pressed for time ms
 || #
 */
-bool Button::heldFor(unsigned int time) 
+bool Button::heldFor(unsigned int time)
 {
-  if (isPressed()) 
+  if (isPressed())
   {
     if (millis()-pressedStartTime > time) { return true; }
   }
@@ -324,9 +331,9 @@ bool Button::heldFor(unsigned int time)
 || | Set the hold event time threshold
 || #
 */
-void Button::setHoldThreshold(unsigned int holdTime) 
-{ 
-  holdEventThreshold = holdTime; 
+void Button::setHoldThreshold(unsigned int holdTime)
+{
+  holdEventThreshold = holdTime;
 }
 
 /*
@@ -336,9 +343,9 @@ void Button::setHoldThreshold(unsigned int holdTime)
 || |  second click ends
 || #
 */
-void Button::setdoubleclickThreshold(unsigned int doublclickTime) 
-{ 
-  doubleclickThreshold = doublclickTime; 
+void Button::setdoubleclickThreshold(unsigned int doublclickTime)
+{
+  doubleclickThreshold = doublclickTime;
 }
 
 /*
@@ -409,10 +416,10 @@ void Button::holdHandler(buttonEventHandler handler, unsigned int holdTime /*=0*
 ||
 || @return The time this button has been held
 */
-unsigned int Button::holdTime() const { 
-  if (pressedStartTime!=-1) { 
-    return millis()-pressedStartTime; 
-  } else return 0; 
+unsigned int Button::holdTime() const {
+  if (pressedStartTime!=-1) {
+    return millis()-pressedStartTime;
+  } else return 0;
 }
 
 
@@ -420,12 +427,12 @@ unsigned int Button::holdTime() const {
 || @description
 || | Compare a button object against this
 || #
-|| 
+||
 || @parameter  rhs the Button to compare against this Button
-|| 
+||
 || @return true if they are the same
 */
-bool Button::operator==(Button &rhs) 
+bool Button::operator==(Button &rhs)
 {
   return (this==&rhs);
 }

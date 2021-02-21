@@ -161,7 +161,7 @@ void changeMonth(DateTime &NowTime, byte Month);
 void changeDay(DateTime &NowTime, byte Day);
 void changeHour(DateTime &NowTime, byte Hour);
 void changeMinute(DateTime &NowTime, byte Minute);
-
+void printColorValue(Color_t val);
 
 
 LedStripMgr ledMgr(Led_R_Pin, Led_G_Pin, Led_B_Pin, Led_WW_Pin, Led_CW_Pin);
@@ -203,7 +203,7 @@ LedStripMgr ledMgr(Led_R_Pin, Led_G_Pin, Led_B_Pin, Led_WW_Pin, Led_CW_Pin);
     // Menu  (KEY_MODE):          2700
     // no key pressed:            4095
     // So we create a vector with following limits separating buttons readouts:
-    Button MultiButton(MultiButton_Pin, BUTTON_MULTIKEY,true, DebouceTime, {300, 800, 1500, 2200, 3300}); // {200, 700, 1400, 2200, 3300});
+    Button MultiButton(MultiButton_Pin, BUTTON_MULTIKEY,true, DebouceTime, {300, 1100, 1700, 2500, 3600}); // {200, 700, 1400, 2200, 3300});
 
     const int Button_Hold_Time = 3000;      // button hold length of time in ms
 
@@ -223,6 +223,8 @@ LedStripMgr ledMgr(Led_R_Pin, Led_G_Pin, Led_B_Pin, Led_WW_Pin, Led_CW_Pin);
     int PreviousLedLevelPercent = -1;
     int PreviousLedDir = 0;
     AlarmTime PreviousAlarm[alarm2 + 1];          // Maybe move as static variable under displayAlarm function
+    Color_t old_ledmgr_color;
+    Color_t old_gui_color;
     bool bHoldButtonFlag = false;     // used to prevent holdButton also activating clickButton
 
     // For ISR
@@ -408,6 +410,45 @@ void displayAlarm(byte index, bool changeFlag=false) {
     }
 }
 
+void displayColor(bool changeFlag) {
+    Color_t color;
+    if (changeFlag == false){
+        color = gui_get_color();
+        if (color != old_gui_color) {
+            Serial.println("Detected color change in GUI: ");
+            printColorValue(color);
+            Serial.println();
+
+            ledMgr.transitionTo(color);
+
+            old_ledmgr_color = old_gui_color = color;
+        }
+    }
+
+    color = ledMgr.getMaxValue();
+    if ((changeFlag == false) && (color != old_ledmgr_color)) {
+        Serial.println("Detected color change on LEDs: ");
+        printColorValue(color);
+        Serial.println();
+
+        changeFlag = true;
+    }
+
+    if (changeFlag == true){
+        old_ledmgr_color = color;
+
+        Serial.println("Setting color in GUI: ");
+        printColorValue(color);
+        Serial.println();
+        gui_set_color(color);
+
+        old_gui_color = color = gui_get_color();
+        Serial.println("Color set in GUI: ");
+        printColorValue(color);
+        Serial.println();
+    }
+}
+
 void displayAll(bool changeFlag=false) {
     displayTemperature(changeFlag);
     displayArrow(changeFlag);
@@ -415,6 +456,7 @@ void displayAll(bool changeFlag=false) {
     displayClock(changeFlag);
     displayAlarm(alarm1, changeFlag);
     displayAlarm(alarm2, changeFlag);
+    displayColor(changeFlag);
 }
 
 void changeMinute(DateTime &NowTime, byte Minute) {
@@ -535,19 +577,7 @@ void ButtonClick(Button& b){
 
     if (bHoldButtonFlag == true) {
         // After a hold button is released, a button click is also registered
-        if (b.keyValue() == KEY_SWITCH_MAX) {
-            ledMgr.finishSettingMaxValue();
-            Color_t maxLedValue = ledMgr.getMaxValue();
-            for (int i = 0; i < LED_LAST; i++) {
-              EEPROM.write(EEPROM_ADDR_MAX_LED_LEVEL + 2 * i,maxLedValue[i]);
-              EEPROM.write(EEPROM_ADDR_MAX_LED_LEVEL + 2 * i + 1, maxLedValue[i] >> 8);
-            }
-            EEPROM.commit();
-            Serial.print("Saved max alarm LED light value at: ");
-            printColorValue(maxLedValue);
-        } else {
-            Serial.println("Button Click ignored");
-        }
+        Serial.println("Button Click ignored");
         bHoldButtonFlag = false;
     } else {
         if (b.keyValue() == KEY_SWITCH_MAX) {
@@ -583,9 +613,15 @@ void ButtonHold(Button& b){
     // To ignore back to back button hold?
     if ((millis()-buttonHoldPrevTime) > 2000){
         if (b.keyValue() == KEY_SWITCH_MAX) {
-//            ledMgr.beginSettingMaxValue();
-//            Serial.println("Setting max alarm LED light value started...");
-//            bHoldButtonFlag = true;
+            Color_t maxLedValue = ledMgr.getMaxValue();
+            for (int i = 0; i < LED_LAST; i++) {
+              EEPROM.write(EEPROM_ADDR_MAX_LED_LEVEL + 2 * i,maxLedValue[i]);
+              EEPROM.write(EEPROM_ADDR_MAX_LED_LEVEL + 2 * i + 1, maxLedValue[i] >> 8);
+            }
+            EEPROM.commit();
+            Serial.print("Saved max alarm LED light value at: ");
+            printColorValue(maxLedValue);
+           bHoldButtonFlag = true;
         }
     }
 }
@@ -741,18 +777,21 @@ void setup() {
       uint16_t component = ((uint16_t)maxLedValueHigh << 8) + (uint16_t)maxLedValueLow;
       maxLedValue[i] = component;
     }
-    maxLedValue[0] = 1000;
-    maxLedValue[1] = 700;
+    maxLedValue[0] = 3000;
+    maxLedValue[1] = 1700;
     maxLedValue[2] = 100;
     maxLedValue[3] = DUTY_MAX;
     maxLedValue[4] = 2000;
-/*    maxLedValue[0] = 500;
+    ledMgr.setMaxValue(maxLedValue, LightProfileName::Alarm);
+    Serial.print("Max Alarm LED value: ");
+    printColorValue(maxLedValue);
+    maxLedValue[0] = 500;
     maxLedValue[1] = 350;
     maxLedValue[2] = 50;
     maxLedValue[3] = DUTY_MAX;
-    maxLedValue[4] = 2000;*/
-    ledMgr.setMaxValue(maxLedValue);
-    Serial.print("Max Alarm LED value: ");
+    maxLedValue[4] = 2000;
+    ledMgr.setMaxValue(maxLedValue, LightProfileName::Switch);
+    Serial.print("Max Switch LED value: ");
     printColorValue(maxLedValue);
 
     /*         Clock Stuff          */
@@ -795,7 +834,6 @@ void setup() {
     //Display the clock
     displayAll(true);
 
-
     //Debug code
     Serial.print("Register 0x0E = ");Serial.println(Clock.getCtrlRegister(), BIN);
     Serial.print("Register 0x0F = ");Serial.println(Clock.getStatusRegister(), BIN);
@@ -831,6 +869,7 @@ void loop() {
       loop_gui();
       //log_d("GUI duration: %lu", millis() - loop_gui_start_mills);
     }
+
 
     delay(2);
 }

@@ -11,12 +11,11 @@ public:
   void setDir(int dir);
   unsigned getLevel();
   Color_t getMaxValue();
-  void setMaxValue(Color_t value);
+  void setMaxValue(Color_t value, LightProfileName profileName);
   int getPercent();
 
   void setDirAndProfile(int dir, LightProfileName profileName);
-  void beginSettingMaxValue();
-  void finishSettingMaxValue();
+  void transitionTo(Color_t toColor);
   void handleSwitch();
 
   bool changeLight(unsigned long timeSinceLastLightChange);

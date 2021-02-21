@@ -1,17 +1,7 @@
 #ifndef LightComposite_h
 #define LightComposite_h
 
-#include <assert.h>
 #include "LightProfile.h"
-
-
-typedef struct {
-  uint16_t& operator[](size_t idx) {assert(idx < LED_LAST); return component[idx];}
-  uint16_t getComponent(size_t idx) const {assert(idx < LED_LAST); return component[idx];}
-  uint16_t component[LED_LAST] = {0,};
-  int getPercent() const;
-} Color_t;
-
 
 class LightComposite {
 public:
