@@ -3,6 +3,7 @@
 
 const unsigned ALARM_LIGHTENING_PERIOD_MS = 20 * 60 * 1000;
 const unsigned SWITCH_LIGHTENING_PERIOD_MS = 2000;
+const unsigned TRANSITION_LIGHTENING_PERIOD_MS = 4000;
 
 // use 500 Hz as a LEDC base frequency
 #define LEDC_BASE_FREQ     500
@@ -14,8 +15,10 @@ const unsigned SWITCH_LIGHTENING_PERIOD_MS = 2000;
 
 const LightProfile alarmLightProfile(LightProfileName::Alarm);
 const LightProfile switchLightProfile(LightProfileName::Switch);
+const LightProfile transitionLightProfile(LightProfileName::Transition);
 LightComposite alarmLightComposite(alarmLightProfile, ALARM_LIGHTENING_PERIOD_MS);
 LightComposite switchLightComposite(switchLightProfile, SWITCH_LIGHTENING_PERIOD_MS);
+LightComposite transitionLightComposite(transitionLightProfile, TRANSITION_LIGHTENING_PERIOD_MS);
 
 LedStripMgr::LedStripMgr(int r_pin, int g_pin, int b_pin, int ww_pin, int cw_pin): LED_Pins{r_pin, g_pin, b_pin, ww_pin,cw_pin}, lightComposite(&alarmLightComposite) {
 }
@@ -96,7 +99,7 @@ void LedStripMgr::transitionTo(Color_t toColor) {
   portENTER_CRITICAL(&mux);
   stepDir = 1;
   auto fromColor = lightComposite->getCurrentValue();
-  lightComposite = &switchLightComposite;
+  lightComposite = &transitionLightComposite;
   lightComposite->setLevel(0);
   lightComposite->setSourceValue(fromColor);
   lightComposite->setMaxValue(toColor);
@@ -168,7 +171,7 @@ void LedStripMgr::setDirAndLightComposite(int dir, LightComposite &composite) {
   portENTER_CRITICAL(&mux);
   stepDir = dir;
   log_d("New Dir: %d", stepDir);
-  if (lightComposite != &composite) {
+  if ((lightComposite != &composite) || (lightComposite->getTargetValue() != lightComposite->getMaxValue()) || lightComposite->getSourceValue() != (Color_t {})) {
     auto value = lightComposite->getCurrentValue();
     log_d("Old level: %u",lightComposite->getLevel());
 

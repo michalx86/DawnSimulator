@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <algorithm>
 #include "LightComposite.h"
 
 int Color_t::getPercent() const {
@@ -38,12 +39,19 @@ Color_t LightComposite::getSourceValue() const {
 void LightComposite::setSourceValue(Color_t value) {
   sourceValue = value;
 }
-
 Color_t LightComposite::getCurrentValue() const {
   Color_t retColor;
   for (int compIdx = 0; compIdx < LED_LAST; compIdx++) {
-    const int profile_val = (*this)(compIdx,level);
-    retColor[compIdx] = profile_val * (targetValue.getComponent(compIdx) - sourceValue.getComponent(compIdx)) / DUTY_MAX + sourceValue.getComponent(compIdx);
+    int32_t target = targetValue.getComponent(compIdx);
+    int32_t source = sourceValue.getComponent(compIdx);
+    unsigned lev = level;
+    if (source > target) {
+      lev = lastSampleNum() - level;
+      std::swap(target,source);
+    }
+    const int32_t profile_val = (*this)(compIdx,lev);
+    retColor[compIdx] = profile_val * (target - source) / DUTY_MAX + source;
+    assert(retColor[compIdx] <= DUTY_MAX);
   }
   return retColor;
 }

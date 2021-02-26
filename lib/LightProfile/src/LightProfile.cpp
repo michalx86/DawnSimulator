@@ -9,9 +9,11 @@ typedef struct {
 
 static Boundaries_t alarm_boundaries[LED_LAST] = {{.0f, .35f}, {.0f, .55f}, {.25f, .75f}, {.25f, 1.0f}, {.4f, 1.0f}};
 static Boundaries_t switch_boundaries[LED_LAST] = {{.0f, .35f}, {.0f, .55f}, {.25f, .75f}, {.25f, 1.0f}, {.4f, 1.0f}};
+static Boundaries_t transition_boundaries[LED_LAST] = {{.0f, 1.0f}, {.0f, 1.0f}, {.0f, 1.0f}, {.0f, 1.0f}, {.0f, 1.0f}};
 
 static uint16_t alarm_arr[LED_LAST][2000] = {};
 static uint16_t switch_arr[LED_LAST][120] = {};
+static uint16_t transition_arr[LED_LAST][120] = {};
 
 LightProfile::LightProfile(LightProfileName profileName): profile(profileName) {
   auto num_samples = samplesNum();
@@ -22,6 +24,7 @@ LightProfile::LightProfile(LightProfileName profileName): profile(profileName) {
     switch (profile) {
       case LightProfileName::Alarm : arr = &alarm_arr[compIdx][0]; low = alarm_boundaries[compIdx].low; high = alarm_boundaries[compIdx].high; break;
       case LightProfileName::Switch : arr = &switch_arr[compIdx][0]; low = switch_boundaries[compIdx].low; high = switch_boundaries[compIdx].high; break;
+      case LightProfileName::Transition : arr = &transition_arr[compIdx][0]; low = transition_boundaries[compIdx].low; high = transition_boundaries[compIdx].high; break;
       default : break;
     }
     assert(arr);
@@ -55,6 +58,7 @@ unsigned LightProfile::samplesNum() const {
   switch (profile) {
     case LightProfileName::Alarm : return sizeof(alarm_arr[0]) / sizeof(alarm_arr[0][0]);
     case LightProfileName::Switch : return sizeof(switch_arr[0]) / sizeof(switch_arr[0][0]);
+    case LightProfileName::Transition : return sizeof(transition_arr[0]) / sizeof(transition_arr[0][0]);
     default : break;
   }
   return 0;
@@ -70,6 +74,7 @@ uint16_t LightProfile::operator()(size_t compIdx, size_t idx) const {
   switch (profile) {
     case LightProfileName::Alarm : return alarm_arr[compIdx][idx];
     case LightProfileName::Switch : return switch_arr[compIdx][idx];
+    case LightProfileName::Transition : return transition_arr[compIdx][idx];
     default : break;
   }
   return 0;

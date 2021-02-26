@@ -425,7 +425,7 @@ void displayColor(bool changeFlag) {
         }
     }
 
-    color = ledMgr.getMaxValue();
+    color = ((ledMgr.getDir() == 1) || ((ledMgr.getDir() == 0) && (ledMgr.getLevel() != 0)))? ledMgr.getMaxValue() : Color_t {};
     if ((changeFlag == false) && (color != old_ledmgr_color)) {
         Serial.println("Detected color change on LEDs: ");
         printColorValue(color);

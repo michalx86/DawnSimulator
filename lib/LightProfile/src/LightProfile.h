@@ -7,7 +7,8 @@
 
 enum class LightProfileName {
   Alarm,
-  Switch
+  Switch,
+  Transition
 };
 
 class LightProfile {
