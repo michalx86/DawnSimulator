@@ -14,10 +14,6 @@ public:
   Color_t getCurrentValue() const;
   Color_t getTargetValue() const;
   void setTargetValue(Color_t value);
-  void setTargetValueToMaxValue();
-  Color_t getMaxValue() const;
-  void setMaxValue(Color_t value);
-  void resetMaxValue();
   bool canMoveOn(int delta);
   unsigned getLevel();
   void setLevel(unsigned _level);
@@ -30,7 +26,6 @@ private:
   const LightProfile& profile;
   Color_t sourceValue;
   Color_t targetValue;
-  Color_t maxValue;
   unsigned period = 0;
   unsigned level = 0;
 };

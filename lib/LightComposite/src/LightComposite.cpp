@@ -16,8 +16,6 @@ int Color_t::getPercent() const {
 
 
 LightComposite::LightComposite(const LightProfile& _profile, unsigned _period): profile(_profile), period(_period) {
-  resetMaxValue();
-  setTargetValueToMaxValue();
 }
 
 unsigned LightComposite::lastSampleNum() const {
@@ -62,27 +60,6 @@ Color_t LightComposite::getTargetValue() const {
 
 void LightComposite::setTargetValue(Color_t value) {
   targetValue = value;
-}
-
-void LightComposite::setTargetValueToMaxValue() {
-  targetValue = maxValue;
-}
-
-Color_t LightComposite::getMaxValue() const {
-  return maxValue;
-}
-
-void LightComposite::setMaxValue(Color_t value) {
-  maxValue = value;
-  setTargetValueToMaxValue();
-}
-
-void LightComposite::resetMaxValue() {
-  Color_t color;
-  for (int i = 0; i < LED_LAST; i++) {
-    color[i] = DUTY_MAX;
-  }
-  setMaxValue(color);
 }
 
 bool LightComposite::canMoveOn(int delta) {

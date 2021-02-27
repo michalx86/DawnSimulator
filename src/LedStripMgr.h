@@ -10,7 +10,7 @@ public:
   int getDir();
   void setDir(int dir);
   unsigned getLevel();
-  Color_t getMaxValue();
+  Color_t getTargetValue();
   int getPercent();
 
   void handleLightOn(LightProfileName profileName, Color_t toColor);

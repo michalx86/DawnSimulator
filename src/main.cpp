@@ -453,9 +453,9 @@ void displayColor(bool changeFlag) {
         }
     }
 
-    color = ((ledMgr.getDir() == 1) || ((ledMgr.getDir() == 0) && (ledMgr.getLevel() != 0)))? ledMgr.getMaxValue() : Color_t {};
+    color = ((ledMgr.getDir() == 1) || ((ledMgr.getDir() == 0) && (ledMgr.getLevel() != 0)))? ledMgr.getTargetValue() : Color_t {};
     if ((changeFlag == false) && (color != old_ledmgr_color)) {
-        Serial.println("Detected color change on LEDs: ");
+        Serial.print("Detected color change on LEDs: ");
         printColorValue(color);
         Serial.println();
 
@@ -465,13 +465,13 @@ void displayColor(bool changeFlag) {
     if (changeFlag == true){
         old_ledmgr_color = color;
 
-        Serial.println("Setting color in GUI: ");
+        Serial.print("Setting color in GUI: ");
         printColorValue(color);
         Serial.println();
         gui_set_color(color);
 
         old_gui_color = color = gui_get_color();
-        Serial.println("Color set in GUI: ");
+        Serial.print("Color set in GUI: ");
         printColorValue(color);
         Serial.println();
     }
@@ -590,7 +590,7 @@ void ButtonClick(Button& b){
             Serial.println("KEY_ALARM_0");
             break;
         case KEY_ALARM_1:
-            Serial.print("KEY_ALARM_1: ");
+            Serial.println("KEY_ALARM_1");
             break;
         case KEY_SWITCH_DOWN:
             Serial.println("KEY_SWITCH_DOWN");

@@ -3,7 +3,7 @@
 
 const unsigned ALARM_LIGHTENING_PERIOD_MS = 20 * 60 * 1000;
 const unsigned SWITCH_LIGHTENING_PERIOD_MS = 2000;
-const unsigned TRANSITION_LIGHTENING_PERIOD_MS = 4000;
+const unsigned TRANSITION_LIGHTENING_PERIOD_MS = 2000;
 
 // use 500 Hz as a LEDC base frequency
 #define LEDC_BASE_FREQ     500
@@ -61,10 +61,10 @@ unsigned LedStripMgr::getLevel() {
   return retVal;
 }
 
-Color_t LedStripMgr::getMaxValue() {
+Color_t LedStripMgr::getTargetValue() {
   Color_t retVal;
   portENTER_CRITICAL(&mux);
-  retVal = lightComposite->getMaxValue();
+  retVal = lightComposite->getTargetValue();
   portEXIT_CRITICAL(&mux);
   return retVal;
 }
@@ -93,23 +93,19 @@ void LedStripMgr::handleLightOn(LightProfileName profileName, Color_t toColor) {
   LightComposite* composite = profileName2Composite(profileName);
 
   stepDir = 1;
-  log_d("New Dir: %d", stepDir);
-  bool compositeDiffer = (lightComposite != composite);
-  bool targetDiffersFromMax = lightComposite->getTargetValue() != toColor;
-  log_d("compositeDiffer: %u, targetDiffersFromMax: %u", compositeDiffer, targetDiffersFromMax);
-  if (compositeDiffer || targetDiffersFromMax) {
+  if ((lightComposite != composite) || (lightComposite->getTargetValue() != toColor)) {
     auto value = lightComposite->getCurrentValue();
-    log_d("Old level: %u",lightComposite->getLevel());
+    auto oldLevel = lightComposite->getLevel();
 
     lightComposite = composite;
 
     lightComposite->setLevel(0);
     lightComposite->setSourceValue(value);
-    lightComposite->setMaxValue(toColor);
+    lightComposite->setTargetValue(toColor);
 
     Color_t srcVal = lightComposite->getSourceValue();
     Color_t trgVal = lightComposite->getTargetValue();
-    log_d("New level: %u, sourceValue: [%u,%u,%u,%u,%u], targetValue: [%u,%u,%u,%u,%u]", lightComposite->getLevel(), srcVal[0], srcVal[1], srcVal[2], srcVal[3], srcVal[4], trgVal[0], trgVal[1], trgVal[2], trgVal[3], trgVal[4]);
+    log_d("Level: %u -> %u, color: [%u,%u,%u,%u,%u] -> [%u,%u,%u,%u,%u]", oldLevel, lightComposite->getLevel(), srcVal[0], srcVal[1], srcVal[2], srcVal[3], srcVal[4], trgVal[0], trgVal[1], trgVal[2], trgVal[3], trgVal[4]);
   }
   portEXIT_CRITICAL(&mux);
 }
@@ -119,13 +115,9 @@ void LedStripMgr::handleLightOff(LightProfileName profileName) {
   LightComposite* composite = profileName2Composite(profileName);
 
   stepDir = -1;
-  log_d("New Dir: %d", stepDir);
-  bool compositeDiffer = (lightComposite != composite);
-  bool sourceNotZero = lightComposite->getSourceValue() != (Color_t {});
-  log_d("compositeDiffer: %u, sourceNotZero: %u", compositeDiffer, sourceNotZero);
-  if (compositeDiffer || sourceNotZero) {
+  if ((lightComposite != composite) || lightComposite->getSourceValue() != (Color_t {})) {
     auto value = lightComposite->getCurrentValue();
-    log_d("Old level: %u",lightComposite->getLevel());
+    auto oldLevel = lightComposite->getLevel();
 
     lightComposite = composite;
 
@@ -135,7 +127,7 @@ void LedStripMgr::handleLightOff(LightProfileName profileName) {
 
     Color_t srcVal = lightComposite->getSourceValue();
     Color_t trgVal = lightComposite->getTargetValue();
-    log_d("New level: %u, sourceValue: [%u,%u,%u,%u,%u], targetValue: [%u,%u,%u,%u,%u]", lightComposite->getLevel(), srcVal[0], srcVal[1], srcVal[2], srcVal[3], srcVal[4], trgVal[0], trgVal[1], trgVal[2], trgVal[3], trgVal[4]);
+    log_d("Level: %u -> %u, color: [%u,%u,%u,%u,%u] -> [%u,%u,%u,%u,%u]", oldLevel, lightComposite->getLevel(), srcVal[0], srcVal[1], srcVal[2], srcVal[3], srcVal[4], trgVal[0], trgVal[1], trgVal[2], trgVal[3], trgVal[4]);
   }
   portEXIT_CRITICAL(&mux);
 }
@@ -158,7 +150,7 @@ bool LedStripMgr::changeLight(unsigned long timeSinceLastLightChange) {
       }
       if (shouldMoveOn() == false) {
         Color_t currVal = lightComposite->getCurrentValue();
-        log_d("stepDir: %d, level: %u, currentValue: [%u,%u,%u,%u,%u]", stepDir, lightComposite->getLevel(), currVal[0], currVal[1],currVal[2],currVal[3],currVal[4]);
+        log_d("Transition Finished. stepDir: %d, level: %u, currentValue: [%u,%u,%u,%u,%u]", stepDir, lightComposite->getLevel(), currVal[0], currVal[1],currVal[2],currVal[3],currVal[4]);
         stepDir = 0;
       }
     }
