@@ -135,11 +135,16 @@ static void cpicker_event_cb(lv_obj_t * cpicker, lv_event_t event)
         default:
             break;
         }
-        static char buf[8];
-        lv_snprintf(buf, sizeof(buf), "%d", value);
         lv_cpicker_ext_t * ext = (lv_cpicker_ext_t*)lv_obj_get_ext_attr(cpicker);
-        uint32_t part_type = (ext->type == LV_CPICKER_TYPE_DISC)? LV_CPICKER_PART_MAIN : LV_CPICKER_PART_KNOB;
-        lv_obj_set_style_local_value_str(cpicker, part_type, LV_STATE_DEFAULT, buf);
+        if (ext->type == LV_CPICKER_TYPE_DISC) {
+          static char buf[8];
+          lv_snprintf(buf, sizeof(buf), "%d", value);
+          lv_obj_set_style_local_value_str(cpicker, LV_CPICKER_PART_MAIN, LV_STATE_DEFAULT, buf);
+        } else {
+          static char buf[8];
+          lv_snprintf(buf, sizeof(buf), "%d", value);
+          lv_obj_set_style_local_value_str(cpicker, LV_CPICKER_PART_KNOB, LV_STATE_DEFAULT, buf);
+        }
     }
 }
 
@@ -652,8 +657,11 @@ void gui_set_color(Color_t color) {
 
   brightness = brightness * 100 / DUTY_MAX;
   lv_slider_set_value(brightness_slider, brightness, false);
+  slider_event_cb(brightness_slider, LV_EVENT_VALUE_CHANGED);
   lv_cpicker_set_hsv(hsv_cpicker, hsv);
+  cpicker_event_cb(hsv_cpicker, LV_EVENT_VALUE_CHANGED);
   lv_cpicker_set_saturation(light_temp_cpicker, white_temp);
+  cpicker_event_cb(light_temp_cpicker, LV_EVENT_VALUE_CHANGED);
 }
 
 /**
