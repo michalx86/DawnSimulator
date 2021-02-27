@@ -37,6 +37,14 @@ void test_function_lightprofile_get0percent(void) {
 
 void test_function_lightprofile_getMaxPercent(void) {
     lc.setLevelToMax();
+    Color_t color;
+    color[0]= SAMPLE_LAST_VALUE;
+    color[1]= SAMPLE_LAST_VALUE;
+    color[2]= SAMPLE_LAST_VALUE;
+    color[3]= SAMPLE_LAST_VALUE;
+    color[4]= SAMPLE_LAST_VALUE;
+    lc.setTargetValue(color);
+
     TEST_ASSERT_EQUAL(100, lc.getPercent());
 }
 
