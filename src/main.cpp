@@ -140,7 +140,9 @@ const int MultiButton_Pin = 34;
 
 const int SQW_Pin = 35;        // Interrrupt pin
 
-const unsigned EEPROM_SIZE = 2 * LED_LAST;
+enum Keys { KEY_ALARM_1, KEY_SWITCH_DOWN, KEY_SWITCH_UP, KEY_ALARM_0, KEY_OFF };
+
+const unsigned EEPROM_SIZE = 2 * LED_LAST * KEY_OFF;
 const unsigned EEPROM_ADDR_MAX_LED_LEVEL = 0x0;
 
 const unsigned LIGHT_LEVEL_ALLOWED_DIFF = 10;
@@ -193,14 +195,13 @@ LedStripMgr ledMgr(Led_R_Pin, Led_G_Pin, Led_B_Pin, Led_WW_Pin, Led_CW_Pin);
 
     const int DebouceTime = 30;               // button debouce time in ms
 
-    enum Keys { KEY_RIGHT, KEY_SWITCH_MAX, KEY_SWITCH_CUSTOM, KEY_LEFT, KEY_MODE };
 
     // The following are expected values on Keyboard Pin for:
-    // Right (KEY_RIGHT):            0
-    // Down  (KEY_SWITCH_MAX):     400
-    // Up:   (KEY_SWITCH_CUSTOM): 1100
-    // Left  (KEY_LEFT):          1800
-    // Menu  (KEY_MODE):          2700
+    // Right (KEY_ALARM_1):          0
+    // Down  (KEY_SWITCH_DOWN):    400
+    // Up:   (KEY_SWITCH_UP):     1100
+    // Left  (KEY_ALARM_0):       1800
+    // Menu  (KEY_OFF):           2700
     // no key pressed:            4095
     // So we create a vector with following limits separating buttons readouts:
     Button MultiButton(MultiButton_Pin, BUTTON_MULTIKEY,true, DebouceTime, {300, 1100, 1700, 2500, 3600}); // {200, 700, 1400, 2200, 3300});
@@ -235,6 +236,33 @@ volatile unsigned alarmIntrCounter = 0;
 /* ***********************************************************
  *                         Functions                         *
  * ********************************************************* */
+Color_t readColorValue(Keys idx) {
+    assert(idx < KEY_OFF);
+    Color_t retColor;
+    for (int i = 0; i < LED_LAST; i++) {
+      byte colorValueLow  = EEPROM.read(EEPROM_ADDR_MAX_LED_LEVEL + (idx*LED_LAST + i) * 2);
+      byte colorValueHigh = EEPROM.read(EEPROM_ADDR_MAX_LED_LEVEL + (idx*LED_LAST + i) * 2 + 1);
+      retColor[i] = ((uint16_t)colorValueHigh << 8) + (uint16_t)colorValueLow;
+      if (retColor[i] > DUTY_MAX) {
+        retColor[i] = DUTY_MAX;
+      }
+    }
+    return retColor;
+}
+
+void writeColorValue(Keys idx, Color_t color) {
+    assert(idx < KEY_OFF);
+    for (int i = 0; i < LED_LAST; i++) {
+        EEPROM.write(EEPROM_ADDR_MAX_LED_LEVEL + (idx*LED_LAST + i) * 2,     color[i]);
+        EEPROM.write(EEPROM_ADDR_MAX_LED_LEVEL + (idx*LED_LAST + i) * 2 + 1, color[i] >> 8);
+    }
+    EEPROM.commit();
+    Serial.print("Stored color[");
+    Serial.print(idx);
+    Serial.print("] value : ");
+    printColorValue(color);
+}
+
 void displayTemperature(bool changeFlag=false) {
     // CheckFlag Section:
     // The DS3231 temperature can be read once every 64 seconds.
@@ -419,7 +447,7 @@ void displayColor(bool changeFlag) {
             printColorValue(color);
             Serial.println();
 
-            ledMgr.transitionTo(color);
+            ledMgr.handleLightOn(LightProfileName::Transition, color);
 
             old_ledmgr_color = old_gui_color = color;
         }
@@ -553,21 +581,22 @@ void ButtonClick(Button& b){
 
     //Debug code to Serial monitor
     Serial.print("Button Click - ");
-    switch(b.keyValue()){
-        case KEY_MODE:
-            Serial.println("KEY_MODE");
+    unsigned int key = b.keyValue();
+    switch(key) {
+        case KEY_OFF:
+            Serial.println("KEY_OFF");
             break;
-        case KEY_LEFT:
-            Serial.println("KEY_LEFT");
+        case KEY_ALARM_0:
+            Serial.println("KEY_ALARM_0");
             break;
-        case KEY_RIGHT:
-            Serial.print("KEY_RIGHT: ");
+        case KEY_ALARM_1:
+            Serial.print("KEY_ALARM_1: ");
             break;
-        case KEY_SWITCH_MAX:
-            Serial.println("KEY_SWITCH_MAX");
+        case KEY_SWITCH_DOWN:
+            Serial.println("KEY_SWITCH_DOWN");
             break;
-        case KEY_SWITCH_CUSTOM:
-            Serial.println("KEY_SWITCH_CUSTOM");
+        case KEY_SWITCH_UP:
+            Serial.println("KEY_SWITCH_UP");
             break;
         default:
             Serial.println("UNKNOWN");
@@ -580,29 +609,34 @@ void ButtonClick(Button& b){
         Serial.println("Button Click ignored");
         bHoldButtonFlag = false;
     } else {
-        if (b.keyValue() == KEY_SWITCH_MAX) {
-          ledMgr.handleSwitch();
+        if (key < KEY_OFF) {
+            Color_t color = readColorValue((Keys)key);
+            LightProfileName profName = (ledMgr.getLevel() == 0)? LightProfileName::Switch : LightProfileName::Transition;
+            ledMgr.handleLightOn(profName, color);
+        } else if (key == KEY_OFF) {
+            ledMgr.handleLightOff(LightProfileName::Switch);
         }
     }
 }
 
 void ButtonHold(Button& b){
     Serial.print("Button Hold - ");
-    switch(b.keyValue()){
-        case KEY_MODE:
-            Serial.println("KEY_MODE");
+    unsigned int key = b.keyValue();
+    switch(key){
+        case KEY_OFF:
+            Serial.println("KEY_OFF");
             break;
-        case KEY_LEFT:
-            Serial.println("KEY_LEFT");
+        case KEY_ALARM_0:
+            Serial.println("KEY_ALARM_0");
             break;
-        case KEY_RIGHT:
-            Serial.println("KEY_RIGHT");
+        case KEY_ALARM_1:
+            Serial.println("KEY_ALARM_1");
             break;
-        case KEY_SWITCH_MAX:
-            Serial.println("KEY_SWITCH_MAX");
+        case KEY_SWITCH_DOWN:
+            Serial.println("KEY_SWITCH_DOWN");
             break;
-        case KEY_SWITCH_CUSTOM:
-            Serial.println("KEY_SWITCH_CUSTOM");
+        case KEY_SWITCH_UP:
+            Serial.println("KEY_SWITCH_UP");
             break;
         default:
             Serial.println("UNKNOWN");
@@ -612,16 +646,10 @@ void ButtonHold(Button& b){
 
     // To ignore back to back button hold?
     if ((millis()-buttonHoldPrevTime) > 2000){
-        if (b.keyValue() == KEY_SWITCH_MAX) {
-            Color_t maxLedValue = ledMgr.getMaxValue();
-            for (int i = 0; i < LED_LAST; i++) {
-              EEPROM.write(EEPROM_ADDR_MAX_LED_LEVEL + 2 * i,maxLedValue[i]);
-              EEPROM.write(EEPROM_ADDR_MAX_LED_LEVEL + 2 * i + 1, maxLedValue[i] >> 8);
-            }
-            EEPROM.commit();
-            Serial.print("Saved max alarm LED light value at: ");
-            printColorValue(maxLedValue);
-           bHoldButtonFlag = true;
+        if (key < KEY_OFF) {
+            Color_t color = gui_get_color();
+            writeColorValue((Keys)key, color);
+            bHoldButtonFlag = true;
         }
     }
 }
@@ -770,30 +798,6 @@ void setup() {
 
     pinMode(SQW_Pin, INPUT);
 
-    Color_t maxLedValue;
-    for (int i = 0; i < LED_LAST; i++) {
-      byte maxLedValueLow  = EEPROM.read(EEPROM_ADDR_MAX_LED_LEVEL + i*2);
-      byte maxLedValueHigh = EEPROM.read(EEPROM_ADDR_MAX_LED_LEVEL + i*2 + 1);
-      uint16_t component = ((uint16_t)maxLedValueHigh << 8) + (uint16_t)maxLedValueLow;
-      maxLedValue[i] = component;
-    }
-    maxLedValue[0] = 3000;
-    maxLedValue[1] = 1700;
-    maxLedValue[2] = 100;
-    maxLedValue[3] = DUTY_MAX;
-    maxLedValue[4] = 2000;
-    ledMgr.setMaxValue(maxLedValue, LightProfileName::Alarm);
-    Serial.print("Max Alarm LED value: ");
-    printColorValue(maxLedValue);
-    maxLedValue[0] = 500;
-    maxLedValue[1] = 350;
-    maxLedValue[2] = 50;
-    maxLedValue[3] = DUTY_MAX;
-    maxLedValue[4] = 2000;
-    ledMgr.setMaxValue(maxLedValue, LightProfileName::Switch);
-    Serial.print("Max Switch LED value: ");
-    printColorValue(maxLedValue);
-
     /*         Clock Stuff          */
     Clock.begin();
     //Clock.setInterruptCtrl(true);
@@ -858,7 +862,8 @@ void loop() {
     if (activeAlarms) {
         Serial.print("Active alarms: ");
         Serial.println(activeAlarms);
-        ledMgr.setDirAndProfile(1, LightProfileName::Alarm);
+        Color_t color = readColorValue((activeAlarms & 1)? KEY_ALARM_0 : KEY_ALARM_1);
+        ledMgr.handleLightOn(LightProfileName::Alarm, color);
     }
 
     //t0.setText("Test");
@@ -885,7 +890,7 @@ void LedTaskLoop( void * parameter ) {
         //log_d("LT duration: %lu", millis() - mills);
       } else {
         if ((timeSinceLastLightChange > AUTO_SWITCH_OFF_TIMEOUT) && (ledMgr.getLevel() != 0)) {
-          ledMgr.setDirAndProfile(-1, LightProfileName::Alarm);
+          ledMgr.handleLightOff(LightProfileName::Alarm);
           log_d("LED auto-switch off.");
         }
       }

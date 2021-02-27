@@ -11,18 +11,16 @@ public:
   void setDir(int dir);
   unsigned getLevel();
   Color_t getMaxValue();
-  void setMaxValue(Color_t value, LightProfileName profileName);
   int getPercent();
 
-  void setDirAndProfile(int dir, LightProfileName profileName);
-  void transitionTo(Color_t toColor);
-  void handleSwitch();
+  void handleLightOn(LightProfileName profileName, Color_t toColor);
+  void handleLightOff(LightProfileName profileName);
 
   bool changeLight(unsigned long timeSinceLastLightChange);
 
 private:
+  LightComposite* profileName2Composite(LightProfileName profileName);
   void ledWrite(LED_COLOR color, unsigned val);
-  void setDirAndLightComposite(int dir, LightComposite &profile);
   void diagnostic();
 
   int LED_Pins[LED_LAST];
