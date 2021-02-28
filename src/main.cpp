@@ -606,6 +606,7 @@ void ButtonClick(Button& b){
 
     if (bHoldButtonFlag == true) {
         // After a hold button is released, a button click is also registered
+        gui_hide_popup();
         Serial.println("Button Click ignored");
         bHoldButtonFlag = false;
     } else {
@@ -621,6 +622,7 @@ void ButtonClick(Button& b){
 
 void ButtonHold(Button& b){
     Serial.print("Button Hold - ");
+    const char* storedTxt = "unknown";
     unsigned int key = b.keyValue();
     switch(key){
         case KEY_OFF:
@@ -628,15 +630,19 @@ void ButtonHold(Button& b){
             break;
         case KEY_ALARM_0:
             Serial.println("KEY_ALARM_0");
+            storedTxt = "M+ Alarm 1";
             break;
         case KEY_ALARM_1:
             Serial.println("KEY_ALARM_1");
+            storedTxt = "M+ Alarm 2";
             break;
         case KEY_SWITCH_DOWN:
             Serial.println("KEY_SWITCH_DOWN");
+            storedTxt = "M+ Switch 1";
             break;
         case KEY_SWITCH_UP:
             Serial.println("KEY_SWITCH_UP");
+            storedTxt = "M+ Switch 2";
             break;
         default:
             Serial.println("UNKNOWN");
@@ -649,6 +655,7 @@ void ButtonHold(Button& b){
         if (key < KEY_OFF) {
             Color_t color = gui_get_color();
             writeColorValue((Keys)key, color);
+            gui_show_popup(storedTxt);
             bHoldButtonFlag = true;
         }
     }

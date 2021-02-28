@@ -59,6 +59,7 @@ LV_IMG_DECLARE(stars_img);
 static lv_obj_t * brightness_slider = NULL;
 static lv_obj_t * hsv_cpicker = NULL;
 static lv_obj_t * light_temp_cpicker = NULL;
+static lv_obj_t * popup_label = NULL;
 
 // Date Time and Alarm roller widgets:
 static lv_obj_t *hour_rollers[LAST_ROLLER_IDX];
@@ -153,6 +154,14 @@ void set_style_black(lv_obj_t *obj) {
     lv_obj_add_style(obj, LV_OBJ_PART_MAIN, &style_obj_black);
 }
 
+lv_obj_t* create_custom_label(lv_obj_t* par_obj, lv_font_t* font, lv_color_t color) {
+    lv_obj_t* labl = lv_label_create(par_obj, NULL);
+    lv_obj_reset_style_list(labl, LV_OBJ_PART_MAIN);
+    lv_obj_set_style_local_text_font(labl, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, font);
+    lv_obj_set_style_local_text_color(labl, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, color);
+    return labl;
+}
+
 void create_top_light_color_control_view(void) {
     brightness_slider = lv_slider_create(lv_scr_act(), NULL);
     lv_obj_set_pos(brightness_slider, SCREEN_MARGIN + 20, SCREEN_MARGIN);
@@ -200,15 +209,21 @@ void create_top_light_color_control_view(void) {
     lv_obj_set_style_local_transition_prop_4(light_temp_cpicker, LV_CPICKER_PART_KNOB, LV_STATE_DEFAULT, LV_STYLE_VALUE_OFS_X);
     lv_obj_set_style_local_transition_prop_5(light_temp_cpicker, LV_CPICKER_PART_KNOB, LV_STATE_DEFAULT, LV_STYLE_VALUE_OFS_Y);
     lv_obj_set_style_local_transition_prop_6(light_temp_cpicker, LV_CPICKER_PART_KNOB, LV_STATE_DEFAULT, LV_STYLE_VALUE_OPA);
+
+    // popup_label = lv_label_create(lv_scr_act(), NULL);
+    // lv_obj_set_style_local_text_font(popup_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_THEME_DEFAULT_FONT_TITLE);
+    // lv_obj_set_style_local_text_color(popup_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_MAKE(0xCF, 0x40, 0x00));
+
+    popup_label = create_custom_label(lv_scr_act(), LV_THEME_DEFAULT_FONT_TITLE, LV_COLOR_BLACK);
+    lv_obj_set_style_local_bg_opa(popup_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_OPA_COVER);
+    lv_obj_set_style_local_bg_color(popup_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, DEFAULT_TXT_COLOR);
+    lv_obj_set_style_local_border_color(popup_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_COLOR_MAKE(0xCF, 0x40, 0x00));
+    lv_obj_set_style_local_border_width(popup_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, 2);
+    lv_obj_set_style_local_border_opa(popup_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, LV_OPA_COVER);
+    lv_obj_set_style_local_radius(popup_label, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, 10);
+    lv_obj_set_hidden(popup_label, true);
 }
 
-lv_obj_t* create_custom_label(lv_obj_t* par_obj, lv_font_t* font, lv_color_t color) {
-    lv_obj_t* labl = lv_label_create(par_obj, NULL);
-    lv_obj_reset_style_list(labl, LV_OBJ_PART_MAIN);
-    lv_obj_set_style_local_text_font(labl, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, font);
-    lv_obj_set_style_local_text_color(labl, LV_OBJ_PART_MAIN, LV_STATE_DEFAULT, color);
-    return labl;
-}
 lv_obj_t* create_arrow_img(lv_obj_t* par_obj, lv_obj_t* align_obj, const void * img_data) {
     lv_obj_t * img = lv_img_create(par_obj, NULL);
     lv_img_set_src(img, img_data);
@@ -247,7 +262,7 @@ void create_status_view(lv_obj_t* par_obj) {
 
     // LV_COLOR_MAKE(0xFF, 0x80, 0x00) - light orange - almost yellow
     // LV_COLOR_MAKE(0xDF, 0x50, 0x00) - orange
-    // LV_COLOR_MAKE(0xCF, 0x40, 0x00) - darg orange - almost red
+    // LV_COLOR_MAKE(0xCF, 0x40, 0x00) - dark orange - almost red
     time_label = create_custom_label(par_obj, LV_THEME_DEFAULT_FONT_TITLE, LV_COLOR_MAKE(0xCF, 0x40, 0x00));
     lv_obj_set_pos(time_label, 20, 60);
 
@@ -781,6 +796,17 @@ Color_t gui_get_color() {
   }
 
   return ret_color;
+}
+
+void gui_show_popup(const char* txt) {
+  lv_label_set_text_fmt(popup_label, " %s ", txt);
+  lv_obj_align(popup_label, NULL, LV_ALIGN_CENTER, 0, 0);
+  lv_obj_set_y(popup_label, SCREEN_HEIGHT / 2);
+  lv_obj_set_hidden(popup_label, false);
+}
+
+void gui_hide_popup() {
+  lv_obj_set_hidden(popup_label, true);
 }
 
 void setup_gui() {

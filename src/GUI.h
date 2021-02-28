@@ -36,4 +36,7 @@ void gui_show_datetime_view();
 void gui_set_color(Color_t color);
 Color_t gui_get_color();
 
+void gui_show_popup(const char* txt);
+void gui_hide_popup();
+
 #endif // GUI_h
