@@ -146,7 +146,7 @@ const unsigned EEPROM_SIZE = 2 * LED_LAST * KEY_OFF;
 const unsigned EEPROM_ADDR_MAX_LED_LEVEL = 0x0;
 
 const unsigned LIGHT_LEVEL_ALLOWED_DIFF = 10;
-const unsigned AUTO_SWITCH_OFF_TIMEOUT = 3 * 60 * 60 * 1000;
+const unsigned AUTO_SWITCH_OFF_TIMEOUT = 3UL * 60UL * 60UL * 1000UL;
 
 const int16_t YEAR_MIN = 20;
 const int16_t YEAR_MAX = 199;
@@ -236,6 +236,8 @@ volatile unsigned alarmIntrCounter = 0;
 /* ***********************************************************
  *                         Functions                         *
  * ********************************************************* */
+
+
 Color_t readColorValue(Keys idx) {
     assert(idx < KEY_OFF);
     Color_t retColor;
@@ -269,7 +271,7 @@ void displayTemperature(bool changeFlag=false) {
     // Check the temperature every 65 seconds
     unsigned long mills = millis();
     unsigned long uL = mills - RunTime;
-    if ((uL >=65000)) {
+    if ((uL >= 65000UL)) {
         float PreviousTemperature = CurrentTemperature;
         CurrentTemperature = getTemperatureValue();
         RunTime = mills;
@@ -651,7 +653,7 @@ void ButtonHold(Button& b){
     }
 
     // To ignore back to back button hold?
-    if ((millis()-buttonHoldPrevTime) > 2000){
+    if ((millis()-buttonHoldPrevTime) > 2000UL){
         if (key < KEY_OFF) {
             Color_t color = gui_get_color();
             writeColorValue((Keys)key, color);
@@ -807,6 +809,7 @@ void setup() {
 
     /*         Clock Stuff          */
     Clock.begin();
+    clearAlarms();
     //Clock.setInterruptCtrl(true);
 
     CurrentTemperature = getTemperatureValue();
@@ -881,9 +884,6 @@ void loop() {
       loop_gui();
       //log_d("GUI duration: %lu", millis() - loop_gui_start_mills);
     }
-
-
-    delay(2);
 }
 
 void LedTaskLoop( void * parameter ) {

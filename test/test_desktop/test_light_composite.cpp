@@ -16,6 +16,7 @@
 
 #include "LightProfile.h"
 #include "LightComposite.h"
+#include "test_utils.h"
 #include <unity.h>
 
 #define SAMPLE_LAST_VALUE 8191
@@ -49,6 +50,9 @@ void test_function_lightprofile_getMaxPercent(void) {
 
 int main(int argc, char **argv) {
     UNITY_BEGIN();
+    RUN_TEST(test_1MinusMax);
+    RUN_TEST(test_MaxMinusMax);
+
     RUN_TEST(test_function_lightprofile_get0percent);
     RUN_TEST(test_function_lightprofile_getMaxPercent);
     UNITY_END();
